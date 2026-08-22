@@ -22,6 +22,7 @@
  */
 
 import { el, clearNode } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { attachButtonSounds, play, playMusic } from '../core/audio.js';
 import { setRenderer } from '../core/scene.js';
 import { framedIconURL } from '../art/sprites-items.js';
@@ -56,12 +57,12 @@ export const ShopScreen = {
       if (entry.soldOut) return;
       if (!canHold(entry.item.id)) {
         play('error');
-        toast(`You cannot carry another ${entry.item.name}`, 'bad');
+        toast(t('You cannot carry another {name}', { name: t(entry.item.name) }), 'bad');
         return;
       }
       if (!canAfford(entry.price)) {
         play('error');
-        toast(`${entry.price - getState().gold} gold short`, 'bad');
+        toast(t('{gold} gold short', { gold: entry.price - getState().gold }), 'bad');
         card.classList.remove('shake');
         void card.offsetWidth;
         card.classList.add('shake');
@@ -73,7 +74,7 @@ export const ShopScreen = {
       trackAchievement('itemBought', { id: entry.item.id, rarity: entry.item.rarity });
       entry.units -= 1;
       play('coin');
-      toast(`Bought ${entry.item.name}`, 'gold');
+      toast(t('Bought {name}', { name: t(entry.item.name) }), 'gold');
       renderStock();
     }
 
@@ -115,7 +116,7 @@ export const ShopScreen = {
             entry.stocked > 1
               ? el('div.shop-units', {
                   class: blocked ? 'is-out' : '',
-                  text: blocked ? 'Sold out' : `${entry.units} left`,
+                  text: blocked ? 'Sold out' : t('{n} left', { n: entry.units }),
                 })
               : null,
             el('p.shop-desc', { text: entry.item.desc }),
@@ -136,7 +137,7 @@ export const ShopScreen = {
                   ? el('button.btn.btn--sm', { disabled: true }, ['Bag full'])
                   : el('button.btn.btn--sm.btn--gold', {
                       onclick: () => buy(entry, card),
-                      'aria-label': `Buy ${entry.item.name} for ${entry.price} gold`,
+                      'aria-label': t('Buy {name} for {gold} gold', { name: t(entry.item.name), gold: entry.price }),
                     }, ['Buy']),
             ]),
           ],

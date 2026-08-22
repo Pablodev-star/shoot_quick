@@ -17,6 +17,7 @@
  */
 
 import { el } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { getState } from '../game/player.js';
 import { getWorld } from '../game/worlds.js';
 import { generateEnemy } from '../game/enemies.js';
@@ -92,7 +93,7 @@ export const EnemyTab = {
             setOverride('enemy.lives', n);
             ctx.refresh();
           },
-        }), `this world rolls ${Object.keys(world.enemy.lives).join('/')}`),
+        }), t('this world rolls {list}', { list: Object.keys(world.enemy.lives).join('/') })),
         row('Reads your move', numberField({
           value: o.accuracy,
           min: 0,

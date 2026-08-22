@@ -152,6 +152,35 @@ export async function back(fallback = 'title') {
   else await go(fallback, {}, { back: true });
 }
 
+/**
+ * Rebuild the screen that is already up, in place.
+ *
+ * This exists for exactly one caller: the language setting. Half of the game's
+ * text is baked into pixel canvases and DOM nodes at mount time, so there is no
+ * patching it — the honest way to change the language of a screen is to build
+ * the screen again. No doors, no sound and no back-stack entry, because nothing
+ * NAVIGATED: the player is still on the settings screen looking at the row they
+ * just changed, and it should simply be in Spanish now.
+ */
+export function remount() {
+  if (!current || !root) return;
+  const { id, params } = current;
+  const screen = screens.get(id);
+  if (!screen) return;
+
+  if (current.unmount) {
+    try {
+      current.unmount();
+    } catch (err) {
+      console.error(`[router] unmount of "${id}" threw`, err);
+    }
+  }
+  clearNode(root);
+  current = { id, params, unmount: null };
+  const unmount = screen.mount(root, params);
+  current.unmount = typeof unmount === 'function' ? unmount : screen.unmount;
+}
+
 /** Wipe the back stack — used when entering/leaving a run. */
 export function resetStack() {
   stack.length = 0;

@@ -20,6 +20,7 @@
  */
 
 import { el } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { crisp, drawSprite, makeCanvas } from '../art/pixel.js';
 import { RIDER_OFFSET } from '../art/sprites-character.js';
 import { OUTFIT_SLOTS, DEFAULT_OUTFIT } from '../art/sprites-wardrobe.js';
@@ -50,7 +51,7 @@ export const LooksTab = {
 
     const wear = (slot, id) => {
       setOutfitOverride({ ...worn, [slot]: id });
-      note(`wearing ${slot}:${id}`);
+      note(t('wearing {slot}:{id}', { slot, id }));
       ctx.refresh();
     };
 
@@ -94,7 +95,7 @@ export const LooksTab = {
             const item = WARDROBE[slot].find((g) => g.id === worn[slot]);
             return [
               SLOT_LABELS[slot].name,
-              `${item ? item.name : worn[slot]}${isOwned(slot, worn[slot]) ? '' : ' · borrowed'}`,
+              t(isOwned(slot, worn[slot]) ? '{name}' : '{name} · borrowed', { name: t(item ? item.name : worn[slot]) }),
             ];
           })),
         ]),

@@ -13,6 +13,7 @@
  */
 
 import { EVENTS, emit, on } from '../core/events.js';
+import { t } from '../core/i18n.js';
 import { go, resetStack } from '../core/router.js';
 import { createWalkEngine } from '../explore/walk-engine.js';
 import * as daynight from '../explore/daynight.js';
@@ -355,7 +356,7 @@ export async function resolveDuel({ won, enemy, isBoss, worldId: from }) {
     getState().stats.duelsWon += 1;
     bumpStat('duelsWon');
     bumpStat('goldEarned', gold);
-    toast(`+${gold} gold · +${exp} exp`, 'gold', 'coin');
+    toast(t('+{gold} gold · +{exp} exp', { gold, exp }), 'gold', 'coin');
 
     if (isBoss) {
       bumpStat('worldsCleared');

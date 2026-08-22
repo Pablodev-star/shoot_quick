@@ -8,6 +8,7 @@
 
 import { read, write } from './storage.js';
 import { setVolume, setMuted } from './audio.js';
+import { setLanguage } from './i18n.js';
 
 const SETTINGS_KEY = 'settings';
 const PROFILE_KEY = 'profile';
@@ -15,7 +16,12 @@ const PROFILE_KEY = 'profile';
 const DEFAULT_SETTINGS = {
   volume: 0.6,
   muted: false,
-  language: 'en',
+  /**
+   * `auto` asks the device where it is the first time the game runs and every
+   * time after — Spain or Spanish-speaking Latin America gets Spanish, the rest
+   * of the world gets English. See src/core/i18n.js. `en` and `es` pin it.
+   */
+  language: 'auto',
   screenShake: true,
   showHints: true,
   /** Set once the How to Play panel has been shown automatically. */
@@ -43,14 +49,6 @@ const DEFAULT_PROFILE = {
   clothing: [],
 };
 
-/** Only English is functional; the others are listed but disabled in the UI. */
-export const LANGUAGES = [
-  { id: 'en', label: 'English', available: true },
-  { id: 'es', label: 'Español', available: false },
-  { id: 'pt', label: 'Português', available: false },
-  { id: 'fr', label: 'Français', available: false },
-];
-
 let settings = { ...DEFAULT_SETTINGS };
 let profile = { ...DEFAULT_PROFILE, stats: { ...DEFAULT_PROFILE.stats } };
 
@@ -69,6 +67,18 @@ export async function loadSettings() {
   };
   if (!profile.createdAt) profile.createdAt = Date.now();
   applyAudio();
+  /**
+   * The language is resolved before the first screen mounts, which is the whole
+   * reason `loadSettings` is the first thing boot awaits: `auto` has to have
+   * become `en` or `es` by the time anything calls `t`, or the title screen
+   * comes up in English and then contradicts itself on the next navigation.
+   *
+   * A device that used to be pinned to English by the old default is migrated
+   * to `auto` here rather than left behind it — nobody chose that `en`, it was
+   * the only option the settings screen had.
+   */
+  if (settings.language === 'en' && !stored?.languagePicked) settings.language = 'auto';
+  setLanguage(settings.language);
   return settings;
 }
 
@@ -84,6 +94,13 @@ export function getSettings() {
 export async function updateSettings(patch) {
   settings = { ...settings, ...patch };
   applyAudio();
+  if ('language' in patch) {
+    // `languagePicked` is the record that a HUMAN chose this, which is what
+    // stops the migration above from dragging a deliberate English back to
+    // `auto` on the next boot.
+    settings.languagePicked = true;
+    setLanguage(settings.language);
+  }
   await write(SETTINGS_KEY, settings);
   return settings;
 }

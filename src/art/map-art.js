@@ -1542,7 +1542,13 @@ function paintCompass(ctx, cx, cy) {
  */
 function paintCartouche(ctx, mapW, topBand, title) {
   const scale = 2;
-  const text = String(title).toUpperCase();
+  /**
+   * NOT upper-cased here. The font does that, and it TRANSLATES first (see
+   * `normalise` in src/art/font.js) — so a world name shouted into capitals
+   * before it gets there arrives as a key the Spanish table has never seen and
+   * the board keeps its English. Hand it the name as written.
+   */
+  const text = String(title);
   // Measured from the font rather than guessed at: the longest world name is
   // three times the length of the shortest, and a board sized for "GALAXY" cuts
   // the W off "WHITECROWN PASS".

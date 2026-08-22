@@ -32,6 +32,7 @@
  */
 
 import { el, clearNode } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { attachButtonSounds, play } from '../core/audio.js';
 import { closeButton } from '../ui/widgets.js';
 import { toast } from '../ui/toast.js';
@@ -135,7 +136,7 @@ export function openAdminPanel({ engine, slot }) {
       const player = getState();
       const world = getWorld(player.world);
       clearNode(headChips);
-      headChips.append(chip(`slot ${slot}`));
+      headChips.append(chip(t('slot {n}', { n: slot })));
       headChips.append(chip(`W${world.id} ${world.name}`));
       if (isOverridden()) {
         const bent = activeOverrides().length;
@@ -143,11 +144,15 @@ export function openAdminPanel({ engine, slot }) {
       }
 
       clearNode(footChips);
-      footChips.append(chip(`lv ${player.level}`));
-      footChips.append(chip(`${player.lives}/${player.maxLives}${player.bonusLives ? ` +${player.bonusLives}` : ''} lives`));
-      footChips.append(chip(`${player.gold} gold`));
-      footChips.append(chip(`gun ${player.gunLevel}`));
-      footChips.append(chip(`hunger ${Math.round(player.hunger)}`));
+      footChips.append(chip(t('lv {n}', { n: player.level })));
+      footChips.append(chip(t('{lives}/{max}{bonus} lives', {
+        lives: player.lives,
+        max: player.maxLives,
+        bonus: player.bonusLives ? ` +${player.bonusLives}` : '',
+      })));
+      footChips.append(chip(t('{gold} gold', { gold: player.gold })));
+      footChips.append(chip(t('gun {n}', { n: player.gunLevel })));
+      footChips.append(chip(t('hunger {n}', { n: Math.round(player.hunger) })));
     }
 
     /**
@@ -171,7 +176,7 @@ export function openAdminPanel({ engine, slot }) {
     const shortcutBtn = el('button.btn.btn--sm.btn--ghost', {
       onclick: async () => {
         await setShortcutShown(slot, !shortcutShown(slot));
-        note(`road button ${shortcutShown(slot) ? 'shown' : 'hidden'}`);
+        note(t(shortcutShown(slot) ? 'road button shown' : 'road button hidden'));
         renderShortcut();
       },
     }, ['']);
@@ -185,7 +190,7 @@ export function openAdminPanel({ engine, slot }) {
         body.append(active.render(ctx));
       } catch (err) {
         console.error('[admin] tab failed', err);
-        body.append(el('p.admin-hint', { text: `This tab threw: ${err.message}` }));
+        body.append(el('p.admin-hint', { text: t('This tab threw: {message}', { message: err.message }) }));
       }
       attachButtonSounds(body);
     }

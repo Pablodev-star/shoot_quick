@@ -23,11 +23,12 @@
  */
 
 import { el } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { back } from '../core/router.js';
 import { attachButtonSounds, play } from '../core/audio.js';
 import { toast } from '../ui/toast.js';
 import { getProfile } from '../core/settings.js';
-import { backButton, closeButton, uiIcon } from '../ui/widgets.js';
+import { backButton, closeButton, uiIcon, select } from '../ui/widgets.js';
 
 /** Placeholder browser contents. NETWORK: replace with a live room feed. */
 const SAMPLE_ROOMS = [
@@ -42,7 +43,7 @@ const SAMPLE_ROOMS = [
 
 function comingSoon(what = 'Online play') {
   play('error');
-  toast(`${what} is not wired up yet`, 'gold');
+  toast(t('{what} is not wired up yet', { what: t(what) }), 'gold');
 }
 
 function pingQuality(ping) {
@@ -58,7 +59,7 @@ function roomRow(room) {
     {
       class: full ? 'is-full' : '',
       onclick: () => comingSoon('Joining a room'),
-      'aria-label': `${room.name}${room.locked ? ', private' : ''}, ${room.players} of ${room.max} players`,
+      'aria-label': t(room.locked ? '{name}, private, {players} of {max} players' : '{name}, {players} of {max} players', { name: t(room.name), players: room.players, max: room.max }),
     },
     [
       el('span.room-name.grow', {}, [
@@ -66,7 +67,7 @@ function roomRow(room) {
           room.locked ? uiIcon('lock', 0.85) : null,
           el('span', { text: room.name }),
         ]),
-        el('span.meta', { text: `${room.mode} · ${room.host}` }),
+        el('span.meta', { text: `${t(room.mode)} · ${room.host}` }),
       ]),
       el('span.room-players', { text: `${room.players}/${room.max}` }),
       el('span.ping', {}, [
@@ -79,31 +80,41 @@ function roomRow(room) {
 
 /** Create-room dialog: complete form, inert Create button. */
 function openCreateRoom() {
+  /** Closing the dialog takes any list it left open with it. */
+  const dismiss = () => {
+    pickers.forEach((p) => p.dispose());
+    backdrop.remove();
+  };
   const backdrop = el('div.modal-backdrop', {
     onclick: (e) => {
-      if (e.target === backdrop) backdrop.remove();
+      if (e.target === backdrop) dismiss();
     },
   });
-  const select = (label, options) =>
-    el('div.field.field--wide', {}, [
-      el('label', { text: label }),
-      el('div.select-wrap', {}, [
-        el('select.input', {}, options.map((o) => el('option', { text: o }))),
-      ]),
-    ]);
+  /**
+   * The form's dropdowns are the game's own (see `select` in
+   * src/ui/widgets.js), not the browser's — even here, where every control on
+   * the dialog is inert until online mode exists. A mock-up that opens a system
+   * list is a mock-up of a different game.
+   */
+  const pickers = [];
+  const field = (label, options) => {
+    const picker = select({ value: options[0], options: options.map((o) => ({ value: o, label: o })), grow: true, label });
+    pickers.push(picker);
+    return el('div.field.field--wide', {}, [el('label', { text: label }), picker]);
+  };
 
   const modal = el('div.panel.modal.modal--narrow', { role: 'dialog', 'aria-label': 'Create room' }, [
     el('div.modal-header', {}, [
       el('h2.panel-title', { text: 'Create Room' }),
-      closeButton(() => backdrop.remove()),
+      closeButton(dismiss),
     ]),
     el('div.modal-content.col', { style: { gap: 'var(--sp-3)' } }, [
       el('div.field.field--wide', {}, [
         el('label', { text: 'Room name' }),
-        el('input.input', { type: 'text', value: `${getProfile().name}'S SALOON`, maxlength: '24' }),
+        el('input.input', { type: 'text', value: t("{name}'S SALOON", { name: getProfile().name }), maxlength: '24' }),
       ]),
-      select('Mode', ['Best of 3', 'Best of 5', 'Sudden death', 'Free-for-all (4)']),
-      select('Starting lives', ['3 lives', '5 lives', '1 life']),
+      field('Mode', ['Best of 3', 'Best of 5', 'Sudden death', 'Free-for-all (4)']),
+      field('Starting lives', ['3 lives', '5 lives', '1 life']),
       el('label.switch', {}, [
         el('input', { type: 'checkbox' }),
         el('span.track'),
@@ -111,7 +122,7 @@ function openCreateRoom() {
       ]),
     ]),
     el('div.modal-footer', {}, [
-      el('button.btn.btn--sm.btn--ghost', { onclick: () => backdrop.remove() }, ['Cancel']),
+      el('button.btn.btn--sm.btn--ghost', { onclick: dismiss }, ['Cancel']),
       el('button.btn.btn--sm.btn--soon', { onclick: () => comingSoon('Creating a room') }, ['Create']),
     ]),
   ]);

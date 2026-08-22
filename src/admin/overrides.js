@@ -131,7 +131,13 @@ export function setOverride(path, value) {
   const before = node[last];
   if (before === value) return false;
   node[last] = value;
-  note(`${path} = ${describe(value)}`, `was ${describe(before)}`);
+  /**
+   * The detail is the old VALUE, not a sentence about it. This file imports
+   * nothing on purpose (see the header), translation included — so the wording
+   * is left to the Lab tab that prints the audit. See `dump(AUDIT…)` in
+   * src/admin/tab-lab.js.
+   */
+  note(`${path} = ${describe(value)}`, { was: describe(before) });
   return true;
 }
 
@@ -140,6 +146,17 @@ export function getOverride(path) {
 }
 
 /** Add a line to the session log. Anything the panel DOES, not just sets. */
+/**
+ * Write a line in the session's audit.
+ *
+ * `detail` is either a string that is already worded, or `{ was }` carrying the
+ * value a dial used to hold — the Lab tab words that one, because wording it
+ * here would mean importing the language table into a file whose whole value is
+ * that it imports nothing.
+ *
+ * @param {string} what
+ * @param {string | {was: string}} [detail]
+ */
 export function note(what, detail = '') {
   AUDIT.push({ at: Date.now(), what, detail });
   if (AUDIT.length > AUDIT_LIMIT) AUDIT.shift();

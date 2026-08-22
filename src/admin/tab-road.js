@@ -20,6 +20,7 @@
  */
 
 import { el } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { go } from '../core/router.js';
 import { getState } from '../game/player.js';
 import { WORLDS, FINAL_WORLD } from '../game/worlds.js';
@@ -81,7 +82,7 @@ export const RoadTab = {
             if (!kind || !next) return;
             next.type = kind;
             next.hidden = false;
-            note(`next stop rewritten to ${kind}`);
+            note(t('next stop rewritten to {kind}', { kind }));
             ctx.refresh();
           },
           width: '220px',
@@ -152,7 +153,7 @@ export const RoadTab = {
           step: 100,
           onChange: (n) => {
             engine?.skip(n);
-            note(`shoved ${n} px down the road`);
+            note(t('shoved {n} px down the road', { n }));
             ctx.refresh();
           },
         }), 'Pixels. The encounter still fires through the ordinary path'),
@@ -164,7 +165,7 @@ export const RoadTab = {
           options: Object.values(WEATHER).map((w) => ({ value: w.id, label: w.label })),
           onChange: (id) => {
             weather.force(id);
-            note(`weather forced to ${id}`);
+            note(t('weather forced to {id}', { id }));
             ctx.refresh();
           },
         }), 'Forced now — the biome will still roll something legal when it runs out'),

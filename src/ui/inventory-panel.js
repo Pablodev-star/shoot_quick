@@ -18,6 +18,7 @@
  */
 
 import { el, clearNode, appendAll } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { attachButtonSounds, play } from '../core/audio.js';
 import { framedIconURL } from '../art/sprites-items.js';
 import { getInventory, sellItem, useItem, getState, isEquipped } from '../game/player.js';
@@ -182,7 +183,7 @@ export function openInventory(opts = {}) {
       toast(`Restored ${result.amount} ${result.amount === 1 ? 'life' : 'lives'}`, 'good');
     }
     if (result.effect === 'bonus') {
-      toast(`${result.amount} extra lives — they go first`, 'gold');
+      toast(t('{count} extra lives — they go first', { count: result.amount }), 'gold');
     }
     if (result.effect === 'equip') toast('In hand for the next fight', 'good');
     if (context === 'duel') close();
@@ -193,7 +194,7 @@ export function openInventory(opts = {}) {
     // The coins leave the card that was sold — see `hintGoldOrigin`.
     hintGoldOrigin(source || null);
     const value = sellItem(id);
-    if (value > 0) toast(`Sold for ${value} gold`, 'gold');
+    if (value > 0) toast(t('Sold for {gold} gold', { gold: value }), 'gold');
     renderAll();
   }
 
@@ -218,7 +219,7 @@ export function openInventory(opts = {}) {
         el('button.inv-cell', {
           role: 'option',
           'aria-pressed': String(selectedId === item.id),
-          'aria-label': `${item.name}, ${qty}`,
+          'aria-label': t('{name}, {count}', { name: t(item.name), count: qty }),
           'data-tip': item.name,
           onclick: () => {
             selectedId = item.id;

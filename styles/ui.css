@@ -1047,22 +1047,135 @@ button.list-row:hover {
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3), var(--focus-ring);
 }
 
-select.input { cursor: pointer; appearance: none; padding-right: var(--sp-6); }
+/* ==========================================================================
+   THE GAME'S OWN DROPDOWN
+   --------------------------------------------------------------------------
+   There is no <select> in this game any more. The operating system's list is
+   the one control a page cannot style — `appearance: none` reaches the closed
+   field and nothing at all reaches the open menu — so a game made of carved
+   wood and bone opened a white system sheet every time the player chose
+   anything. The widget is in `select` in src/ui/widgets.js; this is what it
+   wears, and it is deliberately built out of the same parts as everything
+   else: the sunken field for the closed state, the panel for the open one.
+   ========================================================================== */
 
-.select-wrap { position: relative; width: 100%; max-width: var(--field-max); }
-.select-wrap::after {
-  content: '';
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  width: 0;
-  height: 0;
-  margin-top: -3px;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 7px solid var(--wood-deep);
-  pointer-events: none;
+.pick { position: relative; display: inline-flex; max-width: var(--field-max); }
+.pick.grow { width: 100%; }
+
+/* The closed field. It is a .btn for the press and the focus ring, but it is
+   dressed as an INPUT — sunken, quiet, left-aligned — because it states what
+   the setting currently is and the buttons around it are what act. */
+.pick-btn {
+  --btn-drop: 2px;
+  width: 100%;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  min-height: var(--tap);
+  background: var(--surface-sunken);
+  border: 2px solid var(--edge);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
+  color: var(--bone);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-tight);
+  text-shadow: none;
 }
+
+.pick-btn:hover { border-color: var(--wood-light); filter: none; }
+.pick-btn:focus-visible { border-color: var(--gold); box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35), var(--focus-ring); }
+.pick.is-open .pick-btn { border-color: var(--gold); }
+
+.pick-value {
+  flex: 1 1 auto;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The arrow turns over when the list is up, which is the whole of the open /
+   closed state the field has to carry. */
+.pick-arrow {
+  flex: 0 0 auto;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.pick.is-open .pick-arrow { transform: rotate(180deg); }
+
+/* The list. Fixed to the viewport and mounted on #app, so a panel that scrolls
+   or clips its overflow cannot cut it in half — see `position` in the widget.
+   Above the modal backdrop, because a dropdown inside a dialog is a real thing
+   (the online room form) and it has to open over its own dialog. */
+.pick-menu {
+  position: fixed;
+  z-index: 85;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(320px, 60vh);
+  padding: var(--sp-2);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-glass);
+  border: var(--border) solid var(--edge-strong);
+  border-radius: var(--radius);
+  box-shadow:
+    inset 0 1px 0 var(--edge-highlight),
+    0 6px 0 var(--edge-strong),
+    0 12px 28px rgba(0, 0, 0, 0.6);
+  animation: pick-open var(--dur-fast) var(--ease-out);
+}
+
+@keyframes pick-open {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pick-option {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--sp-2) var(--sp-3);
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  color: var(--bone);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-tight);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* One highlight for the pointer and the keyboard both. A list where hovering
+   and arrowing light different rows is a list that lies about where Enter goes. */
+.pick-option.is-cursor {
+  background: var(--surface-raised);
+  border-color: var(--wood-light);
+}
+
+.pick-option.is-chosen { color: var(--gold-light); }
+
+.pick-option[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pick-option-label { flex: 1 1 auto; }
+
+/* The second line on a row — what the option MEANS, for the lists where the
+   name is not enough on its own. */
+.pick-option-detail {
+  flex: 0 1 auto;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-dim);
+}
+
+.pick-tick { flex: 0 0 auto; }
 
 /* A range that looks like a lever in a track. */
 input[type='range'] {

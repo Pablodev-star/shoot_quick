@@ -31,6 +31,7 @@
  */
 
 import { el, clearNode, wait } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { attachButtonSounds, play, playMusic } from '../core/audio.js';
 import { setRenderer } from '../core/scene.js';
 import { PALETTE } from '../art/palette.js';
@@ -150,7 +151,7 @@ export const ForgeScreen = {
       const cost = gunUpgradeCost();
       const next = maxed ? null : gunTier(state.gunLevel + 1);
 
-      tierName.textContent = tier.name;
+      tierName.textContent = t(tier.name);
       tierBlurb.textContent = tier.blurb;
       damageNow.textContent = `${gunDamage().toFixed(1)} per shot`;
       damageNext.textContent = maxed ? '—' : `${gunDamageAt(state.gunLevel + 1).toFixed(1)} per shot`;
@@ -186,7 +187,7 @@ export const ForgeScreen = {
       const cost = gunUpgradeCost();
       if (state.gold < cost) {
         play('error');
-        toast(`${cost - state.gold} gold short`, 'bad');
+        toast(t('{gold} gold short', { gold: cost - state.gold }), 'bad');
         deal.classList.remove('shake');
         void deal.offsetWidth;
         deal.classList.add('shake');
@@ -221,7 +222,7 @@ export const ForgeScreen = {
       shop.classList.remove('is-working');
       busy = false;
       render();
-      toast(`${tier.name} — ${gunDamage().toFixed(1)} lives a shot`, 'gold');
+      toast(t('{gun} — {lives} lives a shot', { gun: t(tier.name), lives: gunDamage().toFixed(1) }), 'gold');
     }
 
     const shop = el('div.forge-shop', {}, [

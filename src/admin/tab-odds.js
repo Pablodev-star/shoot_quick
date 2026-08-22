@@ -21,6 +21,7 @@
  */
 
 import { el } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { getState } from '../game/player.js';
 import { getWorld } from '../game/worlds.js';
 import { BASE_SLOTS, BASE_DISCOUNT_CHANCE } from '../shops/shop.js';
@@ -121,7 +122,7 @@ export const OddsTab = {
       ]),
 
       section('The counters', [
-        ...RARITIES.map((tier) => row(`${tier} weight`, numberField({
+        ...RARITIES.map((tier) => row(t('{tier} weight', { tier }), numberField({
           value: rarity[tier] ?? 0,
           min: 0,
           onChange: (n) => {
@@ -166,7 +167,7 @@ export const OddsTab = {
 
       section('What is bent right now', [
         bent.length
-          ? readout(bent.map((entry) => [entry.path, `${format(entry.value)}  (was ${format(entry.was)})`]))
+          ? readout(bent.map((entry) => [entry.path, t('{value}  (was {was})', { value: format(entry.value), was: format(entry.was) })]))
           : el('p.admin-hint', { text: 'Nothing. This run is the game as designed.' }),
         buttons([
           action('Put it all back', () => {

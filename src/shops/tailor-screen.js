@@ -34,6 +34,7 @@
  */
 
 import { el, clearNode } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { attachButtonSounds, play, playMusic } from '../core/audio.js';
 import { setRenderer } from '../core/scene.js';
 import { getState, spendGold, canAfford } from '../game/player.js';
@@ -69,7 +70,7 @@ export const TailorScreen = {
       if (entry.bought) return;
       if (!canAfford(entry.price)) {
         play('error');
-        toast(`${entry.price - getState().gold} gold short`, 'bad');
+        toast(t('{gold} gold short', { gold: entry.price - getState().gold }), 'bad');
         card.classList.remove('shake');
         void card.offsetWidth;
         card.classList.add('shake');
@@ -103,7 +104,7 @@ export const TailorScreen = {
       entry.bought = true;
       trackAchievement('clothingBought', { id: entry.offer.id });
       play('coin');
-      toast(`${entry.offer.name} — yours for good`, 'gold');
+      toast(t('{name} — yours for good', { name: t(entry.offer.name) }), 'gold');
       renderRail();
     }
 
@@ -149,7 +150,7 @@ export const TailorScreen = {
                 ? el('button.btn.btn--sm', { disabled: true }, ['Bought'])
                 : el('button.btn.btn--sm.btn--gold', {
                     onclick: () => buy(entry, card),
-                    'aria-label': `Buy ${offer.name} for ${entry.price} gold`,
+                    'aria-label': t('Buy {name} for {gold} gold', { name: t(offer.name), gold: entry.price }),
                   }, ['Buy']),
             ]),
           ],

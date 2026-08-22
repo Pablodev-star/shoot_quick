@@ -19,6 +19,7 @@
  */
 
 import { el } from '../core/dom.js';
+import { select } from '../ui/widgets.js';
 
 /** A titled block of controls. */
 export function section(title, children = [], hint = null) {
@@ -90,17 +91,26 @@ export function textField({ value = '', onChange, placeholder = '', width = '180
 }
 
 /**
- * A dropdown. `options` is `[{ value, label }]`; values are stringified going
- * in and mapped back on the way out, so a null option round-trips.
+ * A dropdown.
+ *
+ * `options` is `[{ value, label }]`, and the values are matched by shape rather
+ * than by identity — the tabs in here hand it objects and nulls, not just
+ * strings, so `===` would never find the current one. The index is what
+ * actually round-trips through the widget; the value is looked back up from it.
+ *
+ * It is the game's own list (src/ui/widgets.js), like every other list in the
+ * product. The admin panel borrows the game's kit rather than the browser's:
+ * that is the rule the whole panel is built on.
  */
 export function selectField({ value, options, onChange, width = '180px' }) {
-  const select = el('select.input', { style: { width } });
-  options.forEach((opt, i) => {
-    select.append(el('option', { value: String(i), text: opt.label }));
-    if (sameValue(opt.value, value)) select.value = String(i);
+  const chosen = options.findIndex((opt) => sameValue(opt.value, value));
+  const field = select({
+    value: chosen < 0 ? null : chosen,
+    options: options.map((opt, i) => ({ value: i, label: opt.label })),
+    onChange: (i) => onChange(options[i].value),
   });
-  select.addEventListener('change', () => onChange(options[Number(select.value)].value));
-  return select;
+  field.style.width = width;
+  return field;
 }
 
 function sameValue(a, b) {

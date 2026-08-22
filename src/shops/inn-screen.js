@@ -22,6 +22,7 @@
  */
 
 import { el, clearNode } from '../core/dom.js';
+import { t, tPlural } from '../core/i18n.js';
 import { attachButtonSounds, play, playMusic } from '../core/audio.js';
 import { setRenderer } from '../core/scene.js';
 import { bedURL, venueSize } from '../art/sprites-venue.js';
@@ -74,8 +75,8 @@ export const InnScreen = {
     function livesText() {
       const s = getState();
       const missing = s.maxLives - s.lives;
-      if (missing === 0) return 'Full health';
-      return `${missing} ${missing === 1 ? 'life' : 'lives'} down`;
+      if (missing === 0) return t('Full health');
+      return tPlural(missing, '1 life down', '{count} lives down');
     }
 
     function rest(offer) {
@@ -88,7 +89,7 @@ export const InnScreen = {
       }
       if (!canAfford(offer.price)) {
         play('error');
-        toast(`${offer.price - state.gold} gold short`, 'bad');
+        toast(t('{gold} gold short', { gold: offer.price - state.gold }), 'bad');
         return;
       }
       spendGold(offer.price);
@@ -154,7 +155,7 @@ export const InnScreen = {
                   ? el('button.btn.btn--sm', { disabled: true }, ['Lives full'])
                   : el('button.btn.btn--sm.btn--gold', {
                       onclick: () => rest(offer),
-                      'aria-label': `${offer.name} for ${offer.price} gold`,
+                      'aria-label': t('{name} for {gold} gold', { name: t(offer.name), gold: offer.price }),
                     }, ['Sleep']),
             ]),
           ]),

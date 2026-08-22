@@ -22,6 +22,7 @@
  */
 
 import { el } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { go } from '../core/router.js';
 import { getState } from '../game/player.js';
 import { WORLDS, getWorld } from '../game/worlds.js';
@@ -92,7 +93,7 @@ export const BattleTab = {
 
     const start = () => {
       const enemy = customEnemy({ ...build });
-      note(`custom fight: ${enemy.name}, ${enemy.lives} lives${build.sandbox ? ' (sandbox)' : ' (for real)'}`);
+      note(t(build.sandbox ? 'custom fight: {name}, {lives} lives (sandbox)' : 'custom fight: {name}, {lives} lives (for real)', { name: t(enemy.name), lives: enemy.lives }));
       ctx.close();
       setTimeout(() => {
         go('duel', {
@@ -182,7 +183,7 @@ export const BattleTab = {
         row('World', selectField({
           value: build.worldId,
           options: [
-            { value: null, label: `— where I am standing (${world.name})` },
+            { value: null, label: t('— where I am standing ({world})', { world: t(world.name) }) },
             ...WORLDS.map((w) => ({ value: w.id, label: `${w.id} · ${w.name}` })),
           ],
           onChange: (id) => set('worldId', id),
@@ -239,8 +240,12 @@ export const BattleTab = {
           }, { tip: 'A copy of it, without the entrance or the second phase' }),
         ]),
         readout([
-          ['You walk in with', `${player.lives}/${player.maxLives} lives${player.bonusLives ? ` +${player.bonusLives}` : ''}`],
-          ['Your bullet', `${player.gunLevel} rungs up the ladder`],
+          ['You walk in with', t('{lives}/{max} lives{bonus}', {
+            lives: player.lives,
+            max: player.maxLives,
+            bonus: player.bonusLives ? ` +${player.bonusLives}` : '',
+          })],
+          ['Your bullet', t('{n} rungs up the ladder', { n: player.gunLevel })],
           ['In your hands', [player.equipped.basic, player.equipped.special].filter(Boolean).join(', ') || 'nothing'],
         ]),
       ]),
