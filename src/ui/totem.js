@@ -196,7 +196,7 @@ export function playTotemRevival(opts = {}) {
       st.flash = 1;
       st.pieces = shatterPieces(4, 7, Math.random);
       st.sparks.push(...makeSparks(CRACK_STAGES, 90));
-      prompt.textContent = opts.title || t('IT BREAKS INSTEAD OF YOU');
+      prompt.textContent = t(opts.title || 'IT BREAKS INSTEAD OF YOU');
       prompt.classList.add('is-final');
       play('toll');
       play('levelUp');

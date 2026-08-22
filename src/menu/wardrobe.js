@@ -99,7 +99,7 @@ export const WardrobeScreen = {
     stage.canvas.style.width = `${stageW}px`;
     stage.canvas.style.height = `${stageH}px`;
     stage.canvas.setAttribute('role', 'img');
-    stage.canvas.setAttribute('aria-label', 'Your gunslinger');
+    stage.canvas.setAttribute('aria-label', t('Your gunslinger'));
     crisp(stage.ctx);
 
     let raf = 0;

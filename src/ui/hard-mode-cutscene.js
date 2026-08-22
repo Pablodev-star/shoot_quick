@@ -45,6 +45,7 @@
  */
 
 import { el } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { play } from '../core/audio.js';
 import { crisp } from '../art/pixel.js';
 import { PALETTE } from '../art/palette.js';
@@ -236,7 +237,8 @@ export function playHardModeUnlock() {
         for (let i = 0; i < LINES.length; i++) if (t >= BEATS.lines[i]) showing = i;
         if (showing >= 0) showLine(showing);
         if (st.lineIndex >= 0) {
-          const text = LINES[st.lineIndex];
+          // Translated before it is sliced — see the note in src/ui/dialogue.js.
+          const text = t(LINES[st.lineIndex]);
           const chars = Math.min(text.length, Math.floor((t - BEATS.lines[st.lineIndex]) / TYPE_MS));
           if (chars !== st.typed) {
             st.typed = chars;

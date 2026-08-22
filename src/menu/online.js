@@ -22,7 +22,7 @@
  * `SAMPLE_ROOMS`.
  */
 
-import { el } from '../core/dom.js';
+import { el, setText } from '../core/dom.js';
 import { t } from '../core/i18n.js';
 import { back } from '../core/router.js';
 import { attachButtonSounds, play } from '../core/audio.js';
@@ -158,12 +158,12 @@ function openMatchmaking() {
 
   const timer = setInterval(() => {
     i = (i + 1) % statuses.length;
-    status.textContent = statuses[i];
+    setText(status, statuses[i]);
   }, 1400);
 
   const giveUp = setTimeout(() => {
     clearInterval(timer);
-    status.textContent = 'Nobody out there yet.';
+    setText(status, 'Nobody out there yet.');
     spinner.classList.add('hidden');
   }, 6000);
 

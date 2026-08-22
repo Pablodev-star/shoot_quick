@@ -26,8 +26,8 @@
  * All rules live in duel-engine.js. This file never decides an outcome.
  */
 
-import { el, clearNode, wait } from '../core/dom.js';
-import { t } from '../core/i18n.js';
+import { el, clearNode, wait, setText, setTip } from '../core/dom.js';
+import { t, tPlural } from '../core/i18n.js';
 import { attachButtonSounds, play, playMusic } from '../core/audio.js';
 import { setRenderer } from '../core/scene.js';
 import { EVENTS, on } from '../core/events.js';
@@ -350,11 +350,14 @@ export const DuelScreen = {
         // "Three lives an eruption" is the wrong promise for a charge special:
         // the whole threat is that they arrive together, and a player reading
         // the card is deciding whether they can afford to trade rounds with it.
-        const rate =
-          spec.pattern === 'charge'
-            ? `${cost} ${cost === 1 ? 'life' : 'lives'} in one shot`
-            : `${cost} ${cost === 1 ? 'life' : 'lives'} an eruption`;
-        const tip = `${spec.label} — ${spec.tip}. ${rate}`;
+        const rate = spec.pattern === 'charge'
+          ? tPlural(cost, '1 life in one shot', '{count} lives in one shot')
+          : tPlural(cost, '1 life an eruption', '{count} lives an eruption');
+        const tip = t('{label} — {what}. {rate}', {
+          label: t(spec.label),
+          what: t(spec.tip),
+          rate,
+        });
         badge.dataset.tip = tip;
         badge.setAttribute('aria-label', tip);
       }
@@ -673,7 +676,9 @@ export const DuelScreen = {
       renderStatus(playerStatus, sides.player);
       renderStatus(enemyStatus, sides.enemy);
       syncStatusTints();
-      roundPill.textContent = `Round ${Math.max(1, duel.getRound() + (localAgent.isWaiting() ? 1 : 0))}`;
+      setText(roundPill, 'Round {n}', {
+        n: Math.max(1, duel.getRound() + (localAgent.isWaiting() ? 1 : 0)),
+      });
 
       // Shoot swaps its cost strip for "Empty" when the cylinder is out, so a
       // disabled button still says why it is disabled.
@@ -1219,21 +1224,30 @@ export const DuelScreen = {
       if (key === hazardChipKey) return;
       hazardChipKey = key;
       hazardChip.hidden = false;
+      /**
+       * One whole sentence per state rather than a label with a suffix stuck on
+       * it. The suffixes are shouted words — FIRED, NOW, ERUPTING — and a word
+       * on its own has no translation until you know what it is attached to.
+       */
+      const shown = t(label);
       hazardChip.textContent =
         phase === 'dormant'
-          ? `${label} · ${hz.secondsToNext()}s`
+          ? t('{label} · {seconds}s', { label: shown, seconds: hz.secondsToNext() })
           : pct >= 0
-            ? `${label} · CHARGING ${pct}%`
+            ? t('{label} · CHARGING {pct}%', { label: shown, pct })
             : spent
-              ? `${label} · FIRED`
+              ? t('{label} · FIRED', { label: shown })
               : phase === 'warning'
-                ? `${label} · NOW`
-                : `${label} · ERUPTING`;
+                ? t('{label} · NOW', { label: shown })
+                : t('{label} · ERUPTING', { label: shown });
       hazardChip.classList.toggle('is-erupting', phase !== 'dormant');
       const cost = specialDamage(hz.spec);
-      hazardChip.dataset.tip = `${hz.spec.tip}. ${
-        hz.getPattern() === 'charge' ? `${cost} lives in one shot` : `${cost} lives an eruption`
-      }`;
+      hazardChip.dataset.tip = t('{what}. {rate}', {
+        what: t(hz.spec.tip),
+        rate: hz.getPattern() === 'charge'
+          ? tPlural(cost, '1 life in one shot', '{count} lives in one shot')
+          : tPlural(cost, '1 life an eruption', '{count} lives an eruption'),
+      });
     }
 
     /**
@@ -1428,8 +1442,8 @@ export const DuelScreen = {
               // gets serious and it has to look like it before the player has
               // taken a single round of the new phase.
               scene.setAura(next.aura || 0);
-              enemyName.textContent = next.name;
-              if (next.look) enemyName.dataset.tip = next.look;
+              setText(enemyName, next.name);
+              if (next.look) setTip(enemyName, next.look);
               else delete enemyName.dataset.tip;
               renderAbilities();
               syncBars();

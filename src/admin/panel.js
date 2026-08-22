@@ -31,7 +31,7 @@
  * its own bugs, which is the last thing anybody needs while chasing one.
  */
 
-import { el, clearNode } from '../core/dom.js';
+import { el, clearNode, setText, setTip } from '../core/dom.js';
 import { t } from '../core/i18n.js';
 import { attachButtonSounds, play } from '../core/audio.js';
 import { closeButton } from '../ui/widgets.js';
@@ -166,11 +166,11 @@ export function openAdminPanel({ engine, slot }) {
      */
     function renderShortcut() {
       const shown = shortcutShown(slot);
-      shortcutBtn.textContent = shown ? 'Hide the road button' : 'Show the road button';
+      setText(shortcutBtn, shown ? 'Hide the road button' : 'Show the road button');
       shortcutBtn.setAttribute('aria-pressed', String(shown));
-      shortcutBtn.dataset.tip = shown
+      setTip(shortcutBtn, shown
         ? 'The sigil still opens this panel with the button hidden'
-        : 'Put the one-tap button back on the road';
+        : 'Put the one-tap button back on the road');
     }
 
     const shortcutBtn = el('button.btn.btn--sm.btn--ghost', {

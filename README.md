@@ -1200,10 +1200,13 @@ there will not be. Call sites still read as the sentence they print, a missing
 translation falls through to English instead of to a `???`, and the English text
 cannot drift out of sync with its key because it *is* the key.
 
-Two doors do the actual work, so that no call site can be forgotten: `el()` in
+Three doors do the actual work, so that no call site can be forgotten: `el()` in
 `src/core/dom.js` translates the `text` prop, the handful of attributes a person
-reads or hears, and any bare string child; `drawText` in `src/art/font.js` does
-the same for everything drawn on a canvas. Between them every word in the game's
+reads or hears, and any bare string child; `setText`/`setTip` beside it do the
+same for text written **after** a node exists, which is what the screens that
+redraw themselves use — the forge after a purchase, the duel writing the round
+number, a status line answering an event; and `drawText` in `src/art/font.js`
+covers everything drawn on a canvas. Between them every word in the game's
 data — an item's name, an achievement's line, a world, a garment, a rider —
 reaches a person already translated, without `t(item.name)` having to be right
 in five different screens. Anything BUILT before it arrives (`` `${n} rounds` ``)

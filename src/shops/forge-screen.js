@@ -30,7 +30,7 @@
  * Nothing here restates what the picture already says.
  */
 
-import { el, clearNode, wait } from '../core/dom.js';
+import { el, clearNode, wait, setText } from '../core/dom.js';
 import { t } from '../core/i18n.js';
 import { attachButtonSounds, play, playMusic } from '../core/audio.js';
 import { setRenderer } from '../core/scene.js';
@@ -151,11 +151,12 @@ export const ForgeScreen = {
       const cost = gunUpgradeCost();
       const next = maxed ? null : gunTier(state.gunLevel + 1);
 
-      tierName.textContent = t(tier.name);
-      tierBlurb.textContent = tier.blurb;
-      damageNow.textContent = `${gunDamage().toFixed(1)} per shot`;
-      damageNext.textContent = maxed ? '—' : `${gunDamageAt(state.gunLevel + 1).toFixed(1)} per shot`;
-      nextName.textContent = maxed ? '' : next.name;
+      setText(tierName, tier.name);
+      setText(tierBlurb, tier.blurb);
+      setText(damageNow, '{n} per shot', { n: gunDamage().toFixed(1) });
+      if (maxed) setText(damageNext, '—');
+      else setText(damageNext, '{n} per shot', { n: gunDamageAt(state.gunLevel + 1).toFixed(1) });
+      setText(nextName, maxed ? '' : next.name);
 
       // The ladder, as one notch per rung: filled behind you, lit where you
       // are, and empty ahead — so "how much of this is left" is a picture.
@@ -166,16 +167,20 @@ export const ForgeScreen = {
           'data-tip': i <= state.gunLevel ? entry.name : 'Not yet forged',
         }));
       });
-      track.setAttribute('aria-label', `Gun tier ${state.gunLevel + 1} of ${GUN_TIERS.length}`);
+      track.setAttribute(
+        'aria-label',
+        t('Gun tier {n} of {total}', { n: state.gunLevel + 1, total: GUN_TIERS.length }),
+      );
 
       deal.classList.toggle('is-maxed', maxed);
       if (maxed) {
-        price.textContent = 'Nothing left to forge';
-        buy.textContent = 'The Nova is finished';
+        setText(price, 'Nothing left to forge');
+        setText(buy, 'The Nova is finished');
         buy.disabled = true;
       } else {
         price.textContent = cost.toLocaleString();
-        buy.textContent = busy ? 'Working…' : `Forge the ${next.name}`;
+        if (busy) setText(buy, 'Working…');
+        else setText(buy, 'Forge the {gun}', { gun: t(next.name) });
         buy.disabled = busy || state.gold < cost;
       }
     }

@@ -8,7 +8,7 @@
  * Roblox prototype and must never change shape.
  */
 
-import { el } from '../core/dom.js';
+import { el, setText, setTip } from '../core/dom.js';
 import { play } from '../core/audio.js';
 import { t } from '../core/i18n.js';
 import { iconURL } from '../art/sprites-items.js';
@@ -245,15 +245,14 @@ export function gauge({ label, iconName, ratio = 1, value = '', tip = '' } = {})
       fill.style.width = `${r * 100}%`;
       applyLevel(track, r);
       node.setAttribute('aria-valuenow', String(Math.round(r * 100)));
-      if (nextValue != null) valueNode.textContent = nextValue;
+      if (nextValue != null) setText(valueNode, nextValue);
     },
     setRate(rate) {
       if (rateState) track.classList.remove(rateState);
       rateState = rate?.state || null;
       rateNode.hidden = !rate;
-      rateNode.textContent = rate?.text || '';
-      if (rate?.tip) rateNode.dataset.tip = rate.tip;
-      else delete rateNode.dataset.tip;
+      setText(rateNode, rate?.text || '');
+      setTip(rateNode, rate?.tip || '');
       if (rateState) track.classList.add(rateState);
     },
   };
@@ -353,12 +352,30 @@ export function select({
   let menu = null;
   /** Which row the keyboard is on while the menu is open. */
   let cursor = Math.max(0, options.findIndex((o) => same(o.value, current)));
+  /**
+   * Ids, because `aria-activedescendant` addresses the active row BY id and
+   * there is no other way to point at it. Focus stays on the trigger the whole
+   * time the list is open — moving it to each row as the arrows travel would
+   * fight the combobox pattern and break the Escape/Tab handling — so the id is
+   * how a screen reader is told which option the arrows are on. Without it the
+   * highlight was a CSS class and nothing else: sighted users saw the row move
+   * and everybody else heard silence, which is worse than the native `<select>`
+   * this replaced.
+   */
+  const uid = `pick-${(pickSeq += 1)}`;
+  const optionId = (i) => `${uid}-opt-${i}`;
 
   const text = el('span.pick-value');
   const button = el('button.btn.pick-btn', {
     type: 'button',
+    /**
+     * A combobox that owns a listbox, which is what this actually is — and
+     * saying so is what lets `aria-activedescendant` below mean anything.
+     */
+    role: 'combobox',
     'aria-haspopup': 'listbox',
     'aria-expanded': 'false',
+    'aria-controls': `${uid}-list`,
     'aria-label': label,
     'data-tip': tip,
     onclick: () => (menu ? close() : open()),
@@ -389,9 +406,14 @@ export function select({
   function open() {
     if (menu || !options.length) return;
     cursor = Math.max(0, options.findIndex((o) => same(o.value, current)));
-    menu = el('div.pick-menu', { role: 'listbox', 'aria-label': label }, options.map((opt, i) =>
+    menu = el('div.pick-menu', {
+      id: `${uid}-list`,
+      role: 'listbox',
+      'aria-label': label,
+    }, options.map((opt, i) =>
       el('button.pick-option', {
         type: 'button',
+        id: optionId(i),
         role: 'option',
         'aria-selected': String(same(opt.value, current)),
         disabled: opt.disabled || null,
@@ -428,6 +450,7 @@ export function select({
     menu.remove();
     menu = null;
     button.setAttribute('aria-expanded', 'false');
+    button.removeAttribute('aria-activedescendant');
     field.classList.remove('is-open');
     window.removeEventListener('pointerdown', onOutside, true);
     window.removeEventListener('keydown', onKey, true);
@@ -458,10 +481,17 @@ export function select({
     if (overflow > 0) menu.style.left = `${Math.round(rect.left - overflow)}px`;
   }
 
+  /**
+   * Move the highlight — and say so out loud. The class is for the eye and
+   * `aria-activedescendant` is for everything else; they are set together here
+   * precisely so they cannot drift apart.
+   */
   function highlight() {
     if (!menu) return;
     [...menu.children].forEach((node, i) => node.classList.toggle('is-cursor', i === cursor));
     menu.children[cursor]?.scrollIntoView({ block: 'nearest' });
+    if (options[cursor]) button.setAttribute('aria-activedescendant', optionId(cursor));
+    else button.removeAttribute('aria-activedescendant');
   }
 
   /** Step the cursor, skipping anything that cannot be picked. */
@@ -540,6 +570,9 @@ export function select({
   field.dispose = () => close();
   return field;
 }
+
+/** One counter for the whole app, so two lists never share an option id. */
+let pickSeq = 0;
 
 /** Values may be strings, numbers or null; compare them the way a list means. */
 function same(a, b) {

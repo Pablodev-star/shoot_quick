@@ -2000,4 +2000,37 @@ export const ES = {
     '{done} de {total} conseguidos · quedan {left} por ahí',
   'Every last one of them. There is nothing left on this road you have not done.':
     'Hasta el último. No queda nada en este camino que no hayas hecho.',
+  // -------------------------------------------------------------------------
+  // Written after the node exists — the forge redrawing itself, the duel
+  // writing the round, the admin door counting down. See `setText` in
+  // src/core/dom.js for why these are their own family.
+  // -------------------------------------------------------------------------
+  '{n} per shot': '{n} por disparo',
+  'Gun tier {n} of {total}': 'Arma de nivel {n} de {total}',
+  'Nothing left to forge': 'No queda nada que forjar',
+  'The Nova is finished': 'La Nova está terminada',
+  'Working…': 'Trabajando…',
+  'Forge the {gun}': 'Forjar {gun}',
+  'Round {n}': 'Ronda {n}',
+  '1 life in one shot': '1 vida en un solo tiro',
+  '{count} lives in one shot': '{count} vidas en un solo tiro',
+  '1 life an eruption': '1 vida por erupción',
+  '{count} lives an eruption': '{count} vidas por erupción',
+  '{label} — {what}. {rate}': '{label}: {what}. {rate}',
+  '{what}. {rate}': '{what}. {rate}',
+  '{label} · {seconds}s': '{label} · {seconds}s',
+  '{label} · CHARGING {pct}%': '{label} · CARGANDO {pct}%',
+  '{label} · FIRED': '{label} · DISPARADO',
+  '{label} · NOW': '{label} · AHORA',
+  '{label} · ERUPTING': '{label} · EN ERUPCIÓN',
+  '{exp} / {next} exp to level {level}': '{exp} / {next} de exp para el nivel {level}',
+  'Nobody out there yet.': 'Todavía no hay nadie ahí fuera.',
+  'This slot is closed for good.': 'Esta ranura está cerrada para siempre.',
+  '1 try left on this slot.': 'Queda 1 intento en esta ranura.',
+  '{count} tries left on this slot.': 'Quedan {count} intentos en esta ranura.',
+  'Hide the road button': 'Ocultar el botón del camino',
+  'Show the road button': 'Mostrar el botón del camino',
+  'The sigil still opens this panel with the button hidden':
+    'El sigilo sigue abriendo este panel con el botón oculto',
+  'Put the one-tap button back on the road': 'Devolver el botón de un toque al camino',
 };

@@ -84,6 +84,40 @@ export function el(spec, props = {}, children = []) {
 }
 
 /**
+ * Put text on a node that already exists, translated.
+ *
+ * THE UPDATE PATH IS A DOOR TOO
+ * ---------------------------------------------------------------------------
+ * `el` covers the text a node is BORN with, and a screen that is built once and
+ * thrown away needs nothing else. The screens that are not built once — the
+ * forge redrawing its ladder after a purchase, the duel writing the round
+ * number every frame, a status line answering an event — reach past `el` and
+ * assign `textContent` directly, and every one of those assignments was a hole
+ * in the translation: the screen mounted in Spanish and then wrote English over
+ * itself the first time anything changed.
+ *
+ * So there are two doors, not one. Use this wherever text is written after
+ * creation, exactly as you would use `el`'s `text` prop.
+ *
+ * @param {Node} node @param {string} text @param {Record<string, any>} [params]
+ */
+export function setText(node, text, params) {
+  if (node) node.textContent = t(text, params);
+  return node;
+}
+
+/**
+ * The same, for the tooltip a node carries — `data-tip` is read by a person
+ * exactly like the text is, and it is written on update paths just as often.
+ */
+export function setTip(node, text, params) {
+  if (!node) return node;
+  if (text == null || text === '') delete node.dataset.tip;
+  else node.dataset.tip = t(text, params);
+  return node;
+}
+
+/**
  * Append children, skipping null/false/undefined.
  *
  * Native `node.append(null)` inserts the *text* "null", which is exactly the

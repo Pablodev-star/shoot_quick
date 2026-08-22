@@ -78,7 +78,11 @@ export function trailBand(opts = {}) {
     const p = expProgress();
     levelValue.textContent = t('Lv {n}', { n: level });
     levelChip.style.setProperty('--exp', `${Math.round(p.ratio * 100)}%`);
-    levelChip.dataset.tip = `${p.exp} / ${p.next} exp to level ${level + 1}`;
+    levelChip.dataset.tip = t('{exp} / {next} exp to level {level}', {
+      exp: p.exp,
+      next: p.next,
+      level: level + 1,
+    });
   };
 
   /**
