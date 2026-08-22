@@ -23,6 +23,7 @@
  */
 
 import { el } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { section, readout, probBar } from './widgets.js';
 import { getState, getInventory } from '../game/player.js';
 import { getWorld } from '../game/worlds.js';
@@ -106,8 +107,8 @@ function whereWeAre(ctx, segment, world, player) {
       ['Biome', biome.label],
       ['Run seed', String(player.seed)],
       ['Segment seed', String(segment?.seed ?? '—')],
-      ['Travelled', `${Math.round(ctx.engine?.getTravelled() ?? 0)} px`],
-      ['Encounter', `${player.encounterIndex} of ${segment ? segment.events.length : '?'}`],
+      ['Travelled', t('{n} px', { n: Math.round(ctx.engine?.getTravelled() ?? 0) })],
+      ['Encounter', t('{index} of {total}', { index: player.encounterIndex, total: segment ? segment.events.length : '?' })],
       ['Duels this world', String(world.encounters.duels)],
       // Which world this run hid the clothing shop in. There is one in a whole
       // run and it is chosen off the seed, so a tester chasing it would
@@ -201,13 +202,13 @@ function theNextCard(engine, segment) {
     el('div.admin-probs', {}, bars),
     el('div.divider', { text: 'what those odds are read off' }),
     readout([
-      ['health', `${num(state.health)} — lives ÷ max lives`],
-      ['belly', `${num(state.belly)} — rations ÷ full gauge`],
-      ['purse', `${num(state.purse)} — gold ÷ three premium beds here`],
+      ['health', t('{value} — lives ÷ max lives', { value: num(state.health) })],
+      ['belly', t('{value} — rations ÷ full gauge', { value: num(state.belly) })],
+      ['purse', t('{value} — gold ÷ three premium beds here', { value: num(state.purse) })],
       ['stocked', state.stocked ? 'yes — something edible in the bag' : 'no — nothing to eat'],
       ['canAffordRung', state.canAffordRung ? 'yes' : 'no'],
       ['lastCall', plan.flags.lastCall ? `yes — ${plan.hand.length} cards left` : 'no'],
-      ['since a building', `${plan.flags.since} stops`],
+      ['since a building', t('{n} stops', { n: plan.flags.since })],
       ['spacing dimmer', num(plan.flags.spacing)],
       ['fights in reserve', plan.flags.canFight ? 'yes' : 'no — the rest of the road alternates'],
       ['beds in hand', String(plan.flags.bedsInHand)],
@@ -249,7 +250,7 @@ function theNextFight(world, player, segment, engine) {
 
   return section('The next rider', [
     el('div.admin-probs', {}, Object.entries(livesOdds).map(([lives, p]) =>
-      probBar(`${lives} ${Number(lives) === 1 ? 'life' : 'lives'}`, p, `worth ${goldForEnemy({ worldId: world.id, lives: Number(lives) })} gold · ${expForEnemy({ worldId: world.id, lives: Number(lives) })} exp`))),
+      probBar(`${lives} ${Number(lives) === 1 ? 'life' : 'lives'}`, p, t('worth {gold} gold · {exp} exp', { gold: goldForEnemy({ worldId: world.id, lives: Number(lives) }), exp: expForEnemy({ worldId: world.id, lives: Number(lives) }) })))),
     readout([
       ['Carrying a trick', pct(profile.abilityChance)],
       ['…and a second one', world.id >= 4 ? pct(profile.abilityChance * 0.5) : 'never before the bayou'],
@@ -257,16 +258,16 @@ function theNextFight(world, player, segment, engine) {
       ['Carrying the landmark', pct(profile.specialChance || 0)],
       ['Landmark erupts', `${pct(SPECIAL_TIMING.earlyChance)} a round for ${SPECIAL_TIMING.earlyRounds} rounds, then ${pct(SPECIAL_TIMING.lateChance)}`],
       ['Reads your move', pct(profile.accuracy)],
-      ['Bullet', `${num(enemyGunDamageAt(world.id, progress, false))} lives`],
+      ['Bullet', t('{n} lives', { n: num(enemyGunDamageAt(world.id, progress, false)) })],
       [
         'Heavier bullet',
         progress >= ENEMY_DAMAGE_RAMP_AT
-          ? `${pct(ENEMY_DAMAGE_RAMP_CHANCE)} for ${num(enemyGunDamageAt(world.id, progress, true))} lives`
+          ? t('{pct} for {n} lives', { pct: pct(ENEMY_DAMAGE_RAMP_CHANCE), n: num(enemyGunDamageAt(world.id, progress, true)) })
           : `not until ${Math.round(ENEMY_DAMAGE_RAMP_AT * 100)}% along (this stop is ${Math.round(progress * 100)}%)`,
       ],
       ['Roster', profile.roster.map((id) => `${ARCHETYPES[id]?.names?.[0] || id} ${pct(rosterShare)}`).join(' · ')],
     ]),
-    el('div.divider', { text: `the kit this world carries${ramped ? ' · past the ramp' : ''}` }),
+    el('div.divider', { text: t(ramped ? 'the kit this world carries · past the ramp' : 'the kit this world carries') }),
     el('div.admin-readout', {}, abilityRows),
     special ? readout([['Landmark', `${special.label} — ${special.tip}`]]) : null,
     el('div.divider', { text: 'the boss at the end of it' }),
@@ -274,10 +275,10 @@ function theNextFight(world, player, segment, engine) {
       ['Name', world.boss.name],
       ['Lives', String(world.boss.phases ? world.boss.phases.map((p) => p.lives).join(' + ') : world.boss.lives)],
       ['Reads your move', pct(world.boss.accuracy)],
-      ['Bullet', `${num(enemyGunDamage(world.id))} lives`],
+      ['Bullet', t('{n} lives', { n: num(enemyGunDamage(world.id)) })],
       ['Tricks', (world.boss.abilities || []).map((id) => getAbility(id).label).join(', ') || 'none'],
       ['Landmark', world.boss.special ? getSpecial(world.boss.special).label : 'none'],
-      ['Pays', `${goldForEnemy({ worldId: world.id, lives: world.boss.lives, isBoss: true })} gold · ${expForEnemy({ worldId: world.id, lives: world.boss.lives, isBoss: true })} exp`],
+      ['Pays', t('{gold} gold · {exp} exp', { gold: goldForEnemy({ worldId: world.id, lives: world.boss.lives, isBoss: true }), exp: expForEnemy({ worldId: world.id, lives: world.boss.lives, isBoss: true }) })],
     ]),
   ], 'Rolled fresh for every duel from this world\'s profile. The percentages are the world\'s own weight tables, normalised.');
 }
@@ -322,7 +323,7 @@ function theSky(world) {
     el('div.divider', { text: 'where it can go from here' }),
     el('div.admin-probs', {}, Object.entries(next).map(([id, p]) =>
       probBar(WEATHER[id]?.label || id, p, WEATHER[id]?.hungerMul ? `hunger ×${WEATHER[id].hungerMul}` : ''))),
-    el('div.divider', { text: `every sky the ${biome.label.toLowerCase()} has` }),
+    el('div.divider', { text: t('every sky the {biome} has', { biome: t(biome.label).toLowerCase() }) }),
     el('div.admin-readout', {}, rows),
   ]);
 }
@@ -350,12 +351,12 @@ function theCounters(world, player) {
       ['Slot zero', 'always something that heals'],
       ['Discount', `${pct(Math.min(0.85, BASE_DISCOUNT_CHANCE + (perks.discountBonus || 0)))} a slot, at ${pct(DISCOUNT_RATE)} off`],
       ['Price here', `base × 2 × 1.42^${world.id - 1} × ${world.priceMul}`],
-      ['Bed', `${innBasicPrice(world.id)} for ${num(innBasicHeal(world.id, player.maxLives))} lives · ${innPremiumPrice(world.id)} for the lot`],
+      ['Bed', t('{cheap} for {lives} lives · {dear} for the lot', { cheap: innBasicPrice(world.id), lives: num(innBasicHeal(world.id, player.maxLives)), dear: innPremiumPrice(world.id) })],
       [
         'Next rung',
         player.gunLevel >= GUN_MAX_LEVEL
           ? 'the gun is a Nova — nothing left to buy'
-          : `${gunUpgradeCost(player.gunLevel)} gold`,
+          : t('{gold} gold', { gold: gunUpgradeCost(player.gunLevel) }),
       ],
     ]),
     el('div.divider', { text: 'how many of a thing lands on the shelf' }),
@@ -377,16 +378,16 @@ function theClocks(player) {
   return section('The clocks', [
     readout([
       ['Hunger', `${num(player.hunger, 1)} / ${HUNGER_MAX}`],
-      ['Draining', `${num(perSec)} a second (×${num(drain.total)})`],
+      ['Draining', t('{n} a second (×{mul})', { n: num(perSec), mul: num(drain.total) })],
       ['…horse', drain.horse ? 'yes' : 'no'],
       ['…canteen', drain.canteen ? 'yes' : 'no'],
       ['…weather', `×${num(drain.weather)}`],
       ['…panel', `×${num(drain.admin ?? 1)}`],
       ['Empty in', perSec > 0 ? `${Math.round(player.hunger / perSec)} s of walking` : 'never'],
-      ['Then', `half a life every ${Math.round(starvationIntervalMs(player.maxLives) / 1000)} s`],
+      ['Then', t('half a life every {n} s', { n: Math.round(starvationIntervalMs(player.maxLives) / 1000) })],
       ['Carrying', food.length ? food.map((e) => `${e.item.name} ×${e.qty}`).join(' · ') : 'nothing edible'],
-      ['Walking', `${num(speed, 1)} px a second`],
-      ['Hour', `${time.phase}${time.isNight ? ' · night, −0.1 to their read' : ''}`],
+      ['Walking', t('{n} px a second', { n: num(speed, 1) })],
+      ['Hour', t(time.isNight ? '{phase} · night, −0.1 to their read' : '{phase}', { phase: t(time.phase) })],
     ]),
   ]);
 }

@@ -14,6 +14,7 @@
  */
 
 import { el } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import {
   getState,
   setLives,
@@ -140,7 +141,7 @@ export const RunTab = {
           min: 0,
           step: 10,
           onChange: (n) => poke('exp', n),
-        }), `${expForNextLevel(player.level)} for the next one`),
+        }), t('{exp} for the next one', { exp: expForNextLevel(player.level) })),
         buttons([
           action('+100 gold', () => {
             addGold(100);
@@ -162,7 +163,7 @@ export const RunTab = {
           value: player.gunLevel,
           options: GUN_TIERS.map((tier, i) => ({
             value: i,
-            label: `${i} · ${tier.name} — ${gunDamageAt(i)} lives`,
+            label: t('{rung} · {gun} — {lives} lives', { rung: i, gun: t(tier.name), lives: gunDamageAt(i) }),
           })),
           onChange: (level) => poke('gunLevel', level),
           width: '260px',
@@ -269,7 +270,7 @@ export const RunTab = {
           options: DIFFICULTIES.map((d) => ({ value: d.id, label: d.name })),
           onChange: (id) => {
             setDifficulty(id);
-            note(`difficulty set to ${id}`);
+            note(t('difficulty set to {id}', { id }));
             refresh();
           },
         }), 'Live. Prices, riders and beds all follow on the next read'),
@@ -280,14 +281,14 @@ export const RunTab = {
           ['Slot', String(ctx.slot)],
           ['Run seed', String(player.seed)],
           ['Road', DIFFICULTIES.find((d) => d.id === getDifficulty()).name],
-          ['Distance walked', `${Math.round(player.distance)} px`],
-          ['Duels', `${player.stats.duelsWon} won · ${player.stats.duelsLost} lost`],
+          ['Distance walked', t('{n} px', { n: Math.round(player.distance) })],
+          ['Duels', t('{won} won · {lost} lost', { won: player.stats.duelsWon, lost: player.stats.duelsLost })],
         ]),
         buttons([
           action('Write the save now', async () => {
             await saveRun();
             note('save written from the panel');
-            ctx.toast(`Slot ${ctx.slot} written`, 'good');
+            ctx.toast(t('Slot {slot} written', { slot: ctx.slot }), 'good');
           }, { variant: 'btn--gold' }),
         ]),
       ], 'The run is written after every encounter anyway. This is for when you have just changed six numbers and want them on the disk before the next thing goes wrong.'),

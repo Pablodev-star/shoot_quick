@@ -43,6 +43,7 @@
  */
 
 import { getProfile, updateProfile } from '../core/settings.js';
+import { t } from '../core/i18n.js';
 import { setPlayerParts, composeFighter, composeRider, horseSprites } from '../art/sprites-character.js';
 import {
   DEFAULT_OUTFIT,
@@ -350,7 +351,9 @@ export function lockFor(slot, id) {
     return {
       kind: 'set',
       name: set ? set.name : 'A complete outfit',
-      description: `Sold as part of ${set ? set.name : 'a complete outfit'}, at a clothing shop.`,
+      description: t('Sold as part of {set}, at a clothing shop.', {
+        set: t(set ? set.name : 'a complete outfit'),
+      }),
     };
   }
   if (item.source === 'shop') {

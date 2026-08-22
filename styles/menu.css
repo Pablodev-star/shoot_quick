@@ -280,9 +280,9 @@
 .slot-card.is-empty .slot-world { color: var(--bone-dark); }
 
 /* An empty card stopped being one big button the day it grew a dropdown — a
-   <select> nested inside a <button> is invalid markup and every click on it
-   would have started a run. The card is a panel now with a real button in it,
-   so the hit areas are the ones the player expects. */
+   list nested inside a <button> is invalid markup and every click on it would
+   have started a run. The card is a panel now with a real button in it, so the
+   hit areas are the ones the player expects. */
 .slot-card.is-empty { cursor: default; }
 .slot-card.is-empty .slot-start { cursor: pointer; width: 100%; }
 
@@ -302,24 +302,10 @@
   color: var(--text-dim);
 }
 
-/* The one <select> in the game. It borrows the chip's surface rather than the
-   button's, because it is a statement of what this card currently IS and the
-   button under it is the thing that acts. */
-.slot-difficulty {
-  flex: 0 1 auto;
-  padding: 5px 10px;
-  background: var(--surface-sunken);
-  border: 2px solid var(--edge);
-  border-radius: var(--radius);
-  color: var(--bone);
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  letter-spacing: var(--tracking-tight);
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.slot-difficulty:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 2px; }
+/* The mode picker on an empty card is the shared dropdown (styles/ui.css), so
+   there is nothing to draw here beyond giving it a sensible share of the row —
+   it should sit next to its label, not stretch the width of the card. */
+.slot-mode .pick { flex: 0 1 auto; min-width: 140px; }
 
 .slot-mode-blurb {
   margin: 0;

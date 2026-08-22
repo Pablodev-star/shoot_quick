@@ -46,7 +46,8 @@
  */
 
 import { read, write } from '../core/storage.js';
-import { el } from '../core/dom.js';
+import { tPlural } from '../core/i18n.js';
+import { el, setText } from '../core/dom.js';
 import { attachButtonSounds, play } from '../core/audio.js';
 import { closeButton } from '../ui/widgets.js';
 import { toast } from '../ui/toast.js';
@@ -263,12 +264,12 @@ export function openPhrasePrompt(slot) {
       void input.offsetWidth;
       input.classList.add('is-wrong');
       if (result.locked) {
-        status.textContent = 'This slot is closed for good.';
+        setText(status, 'This slot is closed for good.');
         input.disabled = true;
         submit.disabled = true;
         return;
       }
-      status.textContent = `${result.left} ${result.left === 1 ? 'try' : 'tries'} left on this slot.`;
+      setText(status, tPlural(result.left, '1 try left on this slot.', '{count} tries left on this slot.'));
       submit.disabled = false;
     }
 
@@ -298,12 +299,12 @@ export function openPhrasePrompt(slot) {
         return;
       }
       if (access.locked) {
-        status.textContent = 'This slot is closed for good.';
+        setText(status, 'This slot is closed for good.');
         input.disabled = true;
         submit.disabled = true;
         return;
       }
-      status.textContent = `${access.left} ${access.left === 1 ? 'try' : 'tries'} left on this slot.`;
+      setText(status, tPlural(access.left, '1 try left on this slot.', '{count} tries left on this slot.'));
       input.focus();
     });
   });

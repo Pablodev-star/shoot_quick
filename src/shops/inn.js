@@ -17,6 +17,7 @@
  */
 
 import { makeRng } from '../core/rng.js';
+import { t, tPlural } from '../core/i18n.js';
 import {
   innBasicHeal,
   innBasicPrice,
@@ -64,15 +65,22 @@ export function generateOffers(worldId, seed) {
    */
   const premiumHeal = innPremiumHeal(getState().maxLives);
   const premiumDesc = premiumHeal === Infinity
-    ? 'A real room, a real bath, a real breakfast. Restores every life.'
-    : `A real room, a real bath, a real breakfast. Restores ${premiumHeal} `
-      + `${premiumHeal === 1 ? 'life' : 'lives'} — out here nobody sleeps the whole night.`;
+    ? t('A real room, a real bath, a real breakfast. Restores every life.')
+    : tPlural(
+        premiumHeal,
+        'A real room, a real bath, a real breakfast. Restores 1 life — out here nobody sleeps the whole night.',
+        'A real room, a real bath, a real breakfast. Restores {count} lives — out here nobody sleeps the whole night.',
+      );
 
   return [
     build(
       'basic',
       'Basic Bed',
-      `A straw mattress and a thin blanket. Restores ${basicHeal} ${basicHeal === 1 ? 'life' : 'lives'}.`,
+      tPlural(
+        basicHeal,
+        'A straw mattress and a thin blanket. Restores 1 life.',
+        'A straw mattress and a thin blanket. Restores {count} lives.',
+      ),
       innBasicPrice(worldId),
       basicHeal,
     ),

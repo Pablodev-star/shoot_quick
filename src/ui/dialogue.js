@@ -41,6 +41,7 @@
  */
 
 import { el, pixelImg } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { play } from '../core/audio.js';
 
 /**
@@ -134,19 +135,27 @@ export function createSpeech({ parent, autoAdvance = true } = {}) {
   function say(line) {
     if (disposed) return Promise.resolve();
     const {
-      text = '',
+      /**
+       * Translated HERE, once, before a single character of it is typed.
+       * The typewriter walks the string a letter at a time, so a line
+       * translated on the way out would be looked up against a fragment —
+       * "Sev", "Seve", "Seven " — and never found. What gets typed has to
+       * already be the sentence the player is going to read.
+       */
+      text: rawText = '',
       name = '',
       portrait = null,
       side = 'enemy',
       charMs = CHAR_MS,
       voice = 'type',
     } = line || {};
+    const text = t(rawText);
 
     return new Promise((resolve) => {
       box.hidden = false;
       box.className = `speech is-${side}`;
       box.classList.add('is-in');
-      nameNode.textContent = name;
+      nameNode.textContent = t(name);
       nameNode.hidden = !name;
       textNode.textContent = '';
       caret.classList.remove('is-ready');

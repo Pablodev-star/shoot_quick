@@ -6,11 +6,12 @@
  */
 
 import { el } from '../core/dom.js';
-import { back } from '../core/router.js';
+import { back, remount } from '../core/router.js';
 import { attachButtonSounds, play } from '../core/audio.js';
-import { getSettings, updateSettings, LANGUAGES } from '../core/settings.js';
+import { getSettings, updateSettings } from '../core/settings.js';
+import { LANGUAGES, getLanguage, getLanguagePreference, detectLanguage, t } from '../core/i18n.js';
 import { toast } from '../ui/toast.js';
-import { backButton, toggle } from '../ui/widgets.js';
+import { backButton, toggle, select } from '../ui/widgets.js';
 import { openHowToPlay } from '../ui/help.js';
 
 /** One settings row: label + description on the left, control on the right. */
@@ -45,31 +46,38 @@ export const SettingsScreen = {
       onchange: () => play('click'),
     });
 
-    const language = el('div.select-wrap.grow', {}, [
-      el(
-        'select.input',
-        {
-          'aria-label': 'Language',
-          onchange: (e) => {
-            const chosen = LANGUAGES.find((l) => l.id === e.target.value);
-            if (!chosen || !chosen.available) {
-              e.target.value = 'en';
-              play('error');
-              toast('Only English is available right now', 'gold');
-              return;
-            }
-            updateSettings({ language: chosen.id });
-          },
-        },
-        LANGUAGES.map((l) =>
-          el('option', {
-            value: l.id,
-            selected: l.id === settings.language,
-            text: l.available ? l.label : `${l.label} — soon`,
-          }),
-        ),
-      ),
-    ]);
+    /**
+     * THE LANGUAGE ROW
+     * -----------------------------------------------------------------------
+     * Three entries and no more. `Auto` says what it actually resolved to on
+     * this device, because "Auto" on its own is a promise the player cannot
+     * check — a phone in Lima should be able to see the word `Español` next to
+     * it before deciding whether to override it.
+     *
+     * Changing it rebuilds the screen underneath the player's finger
+     * (`remount`), which is the only honest way to do this: half the game's
+     * words are baked into canvases and DOM nodes when a screen mounts, so a
+     * language that changed without a rebuild would leave the settings screen
+     * in the old one and every screen after it in the new.
+     */
+    const detected = LANGUAGES.find((l) => l.id === detectLanguage());
+    const language = select({
+      value: getLanguagePreference(),
+      grow: true,
+      label: 'Language',
+      options: LANGUAGES.map((l) => ({
+        value: l.id,
+        label: l.label,
+        detail: l.id === 'auto' ? t('now: {language}', { language: detected.label }) : '',
+      })),
+      onChange: async (id) => {
+        await updateSettings({ language: id });
+        toast(t('Language: {language}', {
+          language: LANGUAGES.find((l) => l.id === getLanguage()).label,
+        }), 'gold');
+        remount();
+      },
+    });
 
     const screen = el('div.screen.settings-screen', {}, [
       el('div.screen-header', {}, [
@@ -96,7 +104,7 @@ export const SettingsScreen = {
 
           el('div.divider', { text: 'Game' }),
           el('div.settings-list', {}, [
-            row('Language', 'More languages arrive with online mode.', language),
+            row('Language', 'Auto follows where you are riding from.', language),
             row(
               'Screen shake',
               'Kick the camera when a shot lands.',
@@ -127,5 +135,8 @@ export const SettingsScreen = {
 
     root.append(screen);
     attachButtonSounds(screen);
+
+    // A list left open when the screen goes is a list left on the page.
+    return () => language.dispose();
   },
 };

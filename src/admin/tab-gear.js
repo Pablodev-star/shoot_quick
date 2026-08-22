@@ -17,6 +17,7 @@
  */
 
 import { el } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { framedIconURL } from '../art/sprites-items.js';
 import { ITEM_LIST, getItem } from '../game/items.js';
 import {
@@ -127,7 +128,7 @@ export const GearTab = {
           if (countOf(id) === 0) addItem(id, 1);
           const result = equipAbility(id);
           if (!result.ok) ctx.toast(result.reason, 'bad');
-          note(`equipped ${id} in the ${slot} slot`);
+          note(t('equipped {id} in the {slot} slot', { id, slot }));
           refresh();
         },
         width: '280px',
@@ -193,7 +194,13 @@ export const GearTab = {
           player.inventory.length
             ? player.inventory.map((entry) => {
                 const item = getItem(entry.id);
-                return [item ? item.name : entry.id, `×${entry.qty} · sells for ${item ? sellPrice(item, player.world) : 0}g`];
+                return [
+                  item ? item.name : entry.id,
+                  t('×{qty} · sells for {gold}g', {
+                    qty: entry.qty,
+                    gold: item ? sellPrice(item, player.world) : 0,
+                  }),
+                ];
               })
             : [['Bag', 'empty']],
         ),

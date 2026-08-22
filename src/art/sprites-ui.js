@@ -83,6 +83,31 @@ const ICONS = {
     '................',
   ],
 
+  /**
+   * Down. The arrow on the game's own dropdown (see `select` in
+   * src/ui/widgets.js), which is why it is a solid wedge rather than a rotated
+   * chevron: it sits at the end of a field and has to read as "there is a list
+   * under this" at a glance, and a thin outlined arrow at 16px does not.
+   */
+  chevronDown: [
+    '................',
+    '................',
+    '................',
+    '................',
+    '...kkkkkkkkkk...',
+    '...kwwwwwwwwk...',
+    '...kdwwwwwwdk...',
+    '....kdwwwwdk....',
+    '.....kdwwdk.....',
+    '......kddk......',
+    '.......kk.......',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+
   /** Close. Two crossed planks rather than a font X. */
   close: [
     '................',

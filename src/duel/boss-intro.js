@@ -224,7 +224,7 @@ export function playBossIntro({ scene, enemy, intro, enemyPortrait, playerPortra
 
     fx.slam = 240;
     fx.ring = 0;
-    fx.card = { text: (enemy.name || '').toUpperCase(), sub: enemy.cardSub || null, t: 0 };
+    fx.card = { text: enemy.name || '', sub: enemy.cardSub || null, t: 0 };
     play('thunder');
     play('toll');
     await beat(1500);

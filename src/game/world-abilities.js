@@ -111,6 +111,7 @@
  */
 
 import { PALETTE } from '../art/palette.js';
+import { t, tPlural } from '../core/i18n.js';
 
 /**
  * The mechanics, and what each one reads off its ability.
@@ -1597,44 +1598,112 @@ export function playerAbility(id) {
   return { ...ability, kind: 'basic', desc: describeAbility(ability) };
 }
 
-/** The one-line description, written from the numbers so it can never drift. */
+/**
+ * The one-line description, written from the numbers so it can never drift.
+ *
+ * EVERY BRANCH RETURNS A WHOLE SENTENCE
+ * ---------------------------------------------------------------------------
+ * This used to build its lines out of parts — a stem, a `lives()` helper that
+ * bolted an `s` on, and a shared ` Charges in N rounds.` tail glued to the end
+ * of all of them. English tolerates that; Spanish does not, because it moves
+ * the words as well as agreeing with them, and half a sentence has no
+ * translation at all. So each case names the finished sentence it prints, in
+ * both the singular and the plural where the numbers can be one, and the
+ * charge tail is part of the sentence rather than a suffix.
+ *
+ * The numbers still come from the ability, so the description still cannot
+ * drift from what the ability does — that was always the point of this
+ * function, and it survives intact.
+ */
 export function describeAbility(a) {
-  const lives = (n) => `${n} ${n === 1 ? 'life' : 'lives'}`;
-  const rounds = (n) => `${n} ${n === 1 ? 'round' : 'rounds'}`;
-  const after = ` Charges in ${a.charge} rounds.`;
+  const charge = a.charge;
+  const line = (one, many, n, params = {}) =>
+    tPlural(n, one, many, { charge, ...params });
+
   switch (a.effect) {
     case 'steal':
-      return `Takes ${rounds(a.amount)} out of their gun${
-        a.take ? ` and loads ${a.take} into yours` : ''
-      }.${after}`;
+      return a.take
+        ? line(
+            'Takes 1 round out of their gun and loads {take} into yours. Charges in {charge} rounds.',
+            'Takes {count} rounds out of their gun and loads {take} into yours. Charges in {charge} rounds.',
+            a.amount,
+            { take: a.take },
+          )
+        : line(
+            'Takes 1 round out of their gun. Charges in {charge} rounds.',
+            'Takes {count} rounds out of their gun. Charges in {charge} rounds.',
+            a.amount,
+          );
     case 'empty':
-      return `Empties their cylinder${a.take ? `, and ${a.take} of them end up in yours` : ''}.${after}`;
+      return a.take
+        ? t('Empties their cylinder, and {take} of them end up in yours. Charges in {charge} rounds.', { take: a.take, charge })
+        : t('Empties their cylinder. Charges in {charge} rounds.', { charge });
     case 'swap':
-      return `Trades cylinders with them, whatever is in each.${after}`;
+      return t('Trades cylinders with them, whatever is in each. Charges in {charge} rounds.', { charge });
     case 'blast':
-      return `${lives(a.amount)} at once — but a raised shield stops it dead.${after}`;
+      return line(
+        '1 life at once — but a raised shield stops it dead. Charges in {charge} rounds.',
+        '{count} lives at once — but a raised shield stops it dead. Charges in {charge} rounds.',
+        a.amount,
+      );
     case 'pierce':
-      return `${lives(a.amount)}, straight through any shield.${after}`;
+      return line(
+        '1 life, straight through any shield. Charges in {charge} rounds.',
+        '{count} lives, straight through any shield. Charges in {charge} rounds.',
+        a.amount,
+      );
     case 'venom':
-      return `One life a round for ${rounds(a.turns)}. No shield stops it.${after}`;
+      return line(
+        'One life a round for 1 round. No shield stops it. Charges in {charge} rounds.',
+        'One life a round for {count} rounds. No shield stops it. Charges in {charge} rounds.',
+        a.turns,
+      );
     case 'drain':
-      return `Takes ${lives(a.amount)} off them and gives it to you.${after}`;
+      return line(
+        'Takes 1 life off them and gives it to you. Charges in {charge} rounds.',
+        'Takes {count} lives off them and gives them to you. Charges in {charge} rounds.',
+        a.amount,
+      );
     case 'freeze':
-      return `They do nothing at all for ${rounds(a.turns)} — the turns are yours.${after}`;
+      return line(
+        'They do nothing at all for 1 round — the turn is yours. Charges in {charge} rounds.',
+        'They do nothing at all for {count} rounds — the turns are yours. Charges in {charge} rounds.',
+        a.turns,
+      );
     case 'jam':
-      return `They cannot shoot for ${rounds(a.turns)}.${after}`;
+      return line(
+        'They cannot shoot for 1 round. Charges in {charge} rounds.',
+        'They cannot shoot for {count} rounds. Charges in {charge} rounds.',
+        a.turns,
+      );
     case 'panic':
-      return `Their shield stops nothing for ${rounds(a.turns)}.${after}`;
+      return line(
+        'Their shield stops nothing for 1 round. Charges in {charge} rounds.',
+        'Their shield stops nothing for {count} rounds. Charges in {charge} rounds.',
+        a.turns,
+      );
     case 'blind':
-      return `Their next ${a.turns === 1 ? 'shot goes' : `${a.turns} shots go`} wide.${after}`;
+      return line(
+        'Their next shot goes wide. Charges in {charge} rounds.',
+        'Their next {count} shots go wide. Charges in {charge} rounds.',
+        a.turns,
+      );
     case 'mark':
-      return `For ${rounds(a.turns)}, every shot that hits them costs one extra life.${after}`;
+      return line(
+        'For 1 round, every shot that hits them costs one extra life. Charges in {charge} rounds.',
+        'For {count} rounds, every shot that hits them costs one extra life. Charges in {charge} rounds.',
+        a.turns,
+      );
     case 'doubleTap':
-      return `Your next ${a.turns === 1 ? 'shot costs' : `${a.turns} shots cost`} them an extra life.${after}`;
+      return line(
+        'Your next shot costs them an extra life. Charges in {charge} rounds.',
+        'Your next {count} shots cost them an extra life each. Charges in {charge} rounds.',
+        a.turns,
+      );
     case 'reflect':
-      return `The next shot that would hit you goes back at them instead.${after}`;
+      return t('The next shot that would hit you goes back at them instead. Charges in {charge} rounds.', { charge });
     default:
-      return `Charges in ${a.charge} rounds.`;
+      return t('Charges in {charge} rounds.', { charge });
   }
 }
 
@@ -1711,8 +1780,8 @@ export function playerSpecial(id) {
      */
     desc:
       spec.pattern === 'charge'
-        ? `Winds up on your rival and fires once: ${row.strikes} lives in a single shot. Charges in ${row.charge} rounds.`
-        : `Calls it down on your rival: ${row.strikes} lives over one eruption. Charges in ${row.charge} rounds.`,
+        ? t('Winds up on your rival and fires once: {strikes} lives in a single shot. Charges in {charge} rounds.', { strikes: row.strikes, charge: row.charge })
+        : t('Calls it down on your rival: {strikes} lives over one eruption. Charges in {charge} rounds.', { strikes: row.strikes, charge: row.charge }),
   };
 }
 

@@ -41,6 +41,7 @@
  */
 
 import { el } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { attachButtonSounds, play } from '../core/audio.js';
 import { makeRng } from '../core/rng.js';
 import { crisp } from '../art/pixel.js';
@@ -277,7 +278,7 @@ export function openTrailMap(opts = {}) {
 
   const canvas = el('canvas.map-canvas', {
     role: 'img',
-    'aria-label': `Trail map of ${world.name}`,
+    'aria-label': t('Trail map of {world}', { world: t(world.name) }),
   });
   const ctx = canvas.getContext('2d');
 
@@ -304,7 +305,7 @@ export function openTrailMap(opts = {}) {
     el('div.modal-header', {}, [
       el('div.col', { style: { gap: '2px' } }, [
         el('h2.panel-title', { text: 'Trail Map' }),
-        el('div.map-place', { text: `${world.name} · ${biome.label}` }),
+        el('div.map-place', { text: `${t(world.name)} · ${t(biome.label)}` }),
       ]),
       closeButton(close),
     ]),

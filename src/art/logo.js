@@ -21,6 +21,7 @@
  */
 
 import { PALETTE } from './palette.js';
+import { onLanguageChange } from '../core/i18n.js';
 import { makeCanvas } from './pixel.js';
 import { drawText, measureText, GLYPH_H } from './font.js';
 
@@ -462,6 +463,16 @@ function paintMask(ctx, mask, style, ox, oy) {
    -------------------------------------------------------------------------- */
 
 let cache = null;
+
+/**
+ * The logo has words in it, and the words have a language. Baking it once and
+ * keeping it forever is right — it is the most expensive picture in the game —
+ * but the cache has to let go when the player changes language, or the title
+ * screen keeps saying WESTERN DUELS under a Spanish menu.
+ */
+onLanguageChange(() => {
+  cache = null;
+});
 
 /**
  * Bake the wordmark and return the canvas. Cached: it is the same picture every

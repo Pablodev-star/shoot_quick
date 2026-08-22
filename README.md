@@ -728,10 +728,17 @@ There is no level select. You walk, and the road decides what you meet.
   nothing left to eat on it — the screen goes black instantly, with no fade,
   and stays black for three full seconds. Then the carving rises out of the dark
   and floats there with its ember coming up behind it, and one word appears at
-  the bottom: **TAP**. The first tap grows it and splits it. The second opens
-  the split into a fissure with light pouring out. The third breaks it into
+  the bottom: **TAP** — and it says TAP every time, all four times. The totem is
+  the only thing that reports progress, and it reports it by getting worse: the
+  first tap grows it and opens a split down the face, forked, with the light
+  behind it already showing. The second widens the split and sends branches out
+  through the brow, the mouth and the gold band. The third runs it the full
+  height of the carving with a white-hot core, throws beams of light out
+  sideways, and the stone will not stop shaking. The fourth breaks it into
   twenty-eight shards that carry their own share of the cracks across the frame,
-  and you are standing up on half your lives with the gauge full. One use, and
+  and you are standing up on half your lives with the gauge full. Every tap
+  sends a ring out through the air, sparks out of the holes that are really in
+  the stone, and chips of the stone itself falling out of frame. One use, and
   the fight you were losing is still going on underneath.
 - **Every enemy is somebody.** Twenty-seven hand-drawn archetypes — the
   Sombrero Outlaw, the Bone Marshal, the Reed Wraith, the Ash Widow, the Iron
@@ -1168,6 +1175,53 @@ the four pieces interchangeable, so you could wear the hood and take the flames
 anywhere. One piece smoulders, three burn properly, and the full set is the
 thing the cut-scene promised.
 
+## Language
+
+The game is in **English and Spanish**, and the setting has three entries:
+**Auto**, **English**, **Español**. Auto is the default, and it is a question
+about geography rather than about preference — Spain and Spanish-speaking Latin
+America get Spanish, everywhere else gets English. It is answered once, at boot,
+from the device's time zone first (the closest thing a browser has to a country:
+somebody in Bogotá on an English-language phone is still in Bogotá), then from
+the region tag on any preferred locale, then from whether Spanish is preferred
+at all. Picking English or Español instead pins it for good.
+
+The translation layer is in `src/core/i18n.js` and it has one idea in it: **the
+English sentence is the key.**
+
+```js
+t('Screen shake')                                  // → 'Vibración de pantalla'
+t('{gold} gold short', { gold: 40 })               // → 'Te faltan 40 de oro'
+tPlural(n, '1 life down', '{count} lives down')    // agreement, both forms written out
+```
+
+There are no identifiers like `ui.settings.title` anywhere in the tree, and
+there will not be. Call sites still read as the sentence they print, a missing
+translation falls through to English instead of to a `???`, and the English text
+cannot drift out of sync with its key because it *is* the key.
+
+Three doors do the actual work, so that no call site can be forgotten: `el()` in
+`src/core/dom.js` translates the `text` prop, the handful of attributes a person
+reads or hears, and any bare string child; `setText`/`setTip` beside it do the
+same for text written **after** a node exists, which is what the screens that
+redraw themselves use — the forge after a purchase, the duel writing the round
+number, a status line answering an event; and `drawText` in `src/art/font.js`
+covers everything drawn on a canvas. Between them every word in the game's
+data — an item's name, an achievement's line, a world, a garment, a rider —
+reaches a person already translated, without `t(item.name)` having to be right
+in five different screens. Anything BUILT before it arrives (`` `${n} rounds` ``)
+has to be written as `t('{n} rounds', { n })` where it is composed, because half
+a sentence has no translation and Spanish moves the words.
+
+Changing the setting rebuilds the current screen in place (`remount` in
+`src/core/router.js`) and drops the two caches that bake words into pictures —
+the title wordmark and the signs over the roadside buildings.
+
+The pixel font gained `Ñ`, `¡` and `¿`; the accented vowels are folded to their
+bare letters, because a 5x7 cap-height face has nowhere to put an accent and a
+smudge on top of a letter is worse than no accent at all. That fold only affects
+canvas text — the HTML UI uses a real font and keeps every accent.
+
 ## Online
 
 The online lobby is **built but not wired**: room browser, create-room dialog,
@@ -1184,6 +1238,18 @@ fill space it does not use, nothing on screen restates what the player can
 already see, and every icon is drawn in the game's own palette rather than
 typed as a character.
 
+There is **no `<select>` in the game**, for the same reason there are no typed
+characters standing in for icons. The operating system's list is the one control
+a page cannot style — `appearance: none` reaches the closed field and nothing at
+all reaches the open menu — so a game made of carved wood opened a white system
+sheet every time the player chose anything. `select` in `src/ui/widgets.js` is a
+button and a panel of buttons instead: same borders, same display face, same
+focus ring, arrow keys and Home/End and Escape, and a list that is mounted on
+`#app` and positioned from the field so a scrolling panel cannot clip it. Every
+list in the product is on it — the language, the difficulty on an empty save
+slot, the online room form, the admin panel's fields — and the next screen that
+needs a choice should use it rather than reaching for a `<select>`.
+
 ```
 index.html              boot page: one canvas, one screen root, two overlays
 package.json            no dependencies; the scripts are the server and the sim
@@ -1199,6 +1265,9 @@ src/
     events.js             the event bus every system talks through
     storage.js            THE data access layer — swap this for a remote DB
     settings.js           device settings + local profile
+    i18n.js               language: `t`, the Auto/English/Español setting, and
+                          the time-zone read that decides what Auto means
+    lang-es.js            the Spanish table, keyed by the English sentence
     audio.js              synthesised placeholder cues + the real-file manifest
     rng.js, dom.js        seeded randomness, DOM helpers
   art/                   every sprite, drawn from character maps at load time

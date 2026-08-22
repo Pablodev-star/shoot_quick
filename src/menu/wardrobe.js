@@ -39,6 +39,7 @@
  */
 
 import { el, clearNode } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { back } from '../core/router.js';
 import { attachButtonSounds, play } from '../core/audio.js';
 import { startMenuScene } from './menu-scene.js';
@@ -98,7 +99,7 @@ export const WardrobeScreen = {
     stage.canvas.style.width = `${stageW}px`;
     stage.canvas.style.height = `${stageH}px`;
     stage.canvas.setAttribute('role', 'img');
-    stage.canvas.setAttribute('aria-label', 'Your gunslinger');
+    stage.canvas.setAttribute('aria-label', t('Your gunslinger'));
     crisp(stage.ctx);
 
     let raf = 0;
@@ -151,7 +152,7 @@ export const WardrobeScreen = {
             slot = entry.slot;
             stage.canvas.setAttribute(
               'aria-label',
-              slot === 'horse' ? 'Your horse' : 'Your gunslinger',
+              t(slot === 'horse' ? 'Your horse' : 'Your gunslinger'),
             );
             renderTabs();
             renderGrid();
@@ -183,7 +184,7 @@ export const WardrobeScreen = {
      */
     function choose(item) {
       if (!item.owned) {
-        toast(`Locked — ${item.lock ? item.lock.description : 'not yours yet'}`, 'bad');
+        toast(t('Locked — {reason}', { reason: t(item.lock ? item.lock.description : 'not yours yet') }), 'bad');
         return;
       }
       if (pending[item.slot] === item.id) return;
@@ -279,8 +280,8 @@ function card(item, onClick) {
     role: 'option',
     'aria-selected': item.equipped ? 'true' : 'false',
     'aria-label': locked
-      ? `${item.name}. Locked. ${lock ? lock.description : ''}`
-      : `${item.name}. ${item.blurb}`,
+      ? t('{name}. Locked. {reason}', { name: t(item.name), reason: t(lock ? lock.description : '') })
+      : t('{name}. {blurb}', { name: t(item.name), blurb: t(item.blurb) }),
     'data-sfx': locked ? 'error' : 'click',
     onclick: onClick,
   }, [

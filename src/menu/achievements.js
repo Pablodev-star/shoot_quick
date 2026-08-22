@@ -40,6 +40,7 @@
  */
 
 import { el, pixelImg } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { back, go } from '../core/router.js';
 import { attachButtonSounds } from '../core/audio.js';
 import { startMenuScene } from './menu-scene.js';
@@ -94,7 +95,11 @@ function summary(percent, unlockedCount, total) {
       el('p.ach-summary-note', {
         text: unlockedCount === total
           ? 'Every last one of them. There is nothing left on this road you have not done.'
-          : `${unlockedCount} of ${total} earned · ${total - unlockedCount} still out there`,
+          : t('{done} of {total} earned · {left} still out there', {
+            done: unlockedCount,
+            total,
+            left: total - unlockedCount,
+          }),
       }),
       el('p.field-hint', {
         text: 'Kept on this device, alongside your profile — a run can end, these do not.',
@@ -119,7 +124,7 @@ function section(category, list) {
   const done = mine.filter((a) => a.unlocked).length;
 
   return el('div.ach-section', {}, [
-    el('div.divider', { text: `${category.name} · ${done}/${mine.length}` }),
+    el('div.divider', { text: t('{category} · {done}/{total}', { category: t(category.name), done, total: mine.length }) }),
     el('p.ach-section-blurb', { text: category.blurb }),
     el('div.ach-grid.stagger', {}, mine.map(card)),
   ]);
@@ -136,8 +141,10 @@ function card(achievement) {
 
   return el('div.ach-card', {
     class: unlocked ? 'is-unlocked' : 'is-locked',
-    'aria-label': `${name}. ${description} ${unlocked ? 'Unlocked.' : 'Locked.'}`
-      + (rewards.length ? ` Reward: ${rewards.map((r) => r.name).join(', ')}.` : ''),
+    'aria-label': t(unlocked ? '{name}. {description} Unlocked.' : '{name}. {description} Locked.', { name: t(name), description: t(description) })
+      + (rewards.length
+        ? ` ${t('Reward: {garments}.', { garments: rewards.map((r) => t(r.name)).join(', ') })}`
+        : ''),
   }, [
     el('div.ach-card-top', {}, [
       el('div.ach-medal', {}, [uiIcon(unlocked ? 'star' : 'lock', 1.3)]),

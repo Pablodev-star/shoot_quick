@@ -76,6 +76,7 @@
  */
 
 import { PALETTE } from './palette.js';
+import { onLanguageChange } from '../core/i18n.js';
 import { bake, makeCanvas, tinted } from './pixel.js';
 import { drawText, measureText, GLYPH_H } from './font.js';
 import { KEY, LAYER_TILE_W, makeCloudLayer, getTumbleweedFrames } from './env-kit.js';
@@ -728,6 +729,16 @@ function getStormLayer() {
 }
 
 const bundles = new Map();
+
+/**
+ * The signs over the shop, the inn, the forge and the clothier are TEXT, baked
+ * into the building sprite in the game's pixel font. So a bundle is only good
+ * for as long as the language it was baked in — drop the lot when that changes
+ * and the next biome the road asks for rebuilds with the right words on it.
+ */
+onLanguageChange(() => {
+  bundles.clear();
+});
 
 /**
  * Everything the parallax renderer needs to draw one biome.

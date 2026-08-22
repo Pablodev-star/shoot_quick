@@ -20,12 +20,24 @@
  *            over-shooting its size and settling, with its ember coming up
  *            behind it. It floats from here on: it is not standing anywhere.
  *   4200     One word at the bottom. TAP.
- *   tap 1    It grows, and it splits. Shake, sparks, a low hit.
- *   tap 2    Bigger, and the split opens into the carving with light coming
- *            out of it — see `crackWide` in src/art/sprites-totem.js.
- *   tap 3    It breaks. The picture comes apart into shards that carry their
+ *   tap 1    It grows, and it splits. A ring goes out, sparks come out of the
+ *            split, chips of stone fall off it, and it takes a low hit.
+ *   tap 2    The split opens. Same again, harder, and the stone starts to
+ *            tremble on its own between taps.
+ *   tap 3    The last one it survives: the fissure runs the whole carving with
+ *            a white core, light comes out of it in beams, and it shakes like
+ *            something holding pressure it cannot hold.
+ *   tap 4    It breaks. The picture comes apart into shards that carry their
  *            own share of the cracks with them, the frame goes white, and the
  *            black lifts off whatever was underneath it all along.
+ *
+ * FOUR TAPS, NOT THREE, AND THE WORD NEVER CHANGES
+ * ---------------------------------------------------------------------------
+ * The prompt used to count down at the player — TAP, then AGAIN, then ONE MORE
+ * — which told them exactly how much was left and turned the last hit into an
+ * errand. It says TAP every time now, and the totem is the only thing that
+ * reports progress: bigger, brighter, more broken, shaking harder. The player
+ * finds out it was the last one by it being the last one.
  *
  * WHAT IT DOES NOT DO
  * ---------------------------------------------------------------------------
@@ -42,7 +54,16 @@ import { play } from '../core/audio.js';
 import { crisp } from '../art/pixel.js';
 import { PALETTE } from '../art/palette.js';
 import { getSettings } from '../core/settings.js';
-import { TOTEM_W, TOTEM_H, composeTotem, shatterPieces } from '../art/sprites-totem.js';
+import { t } from '../core/i18n.js';
+import {
+  TOTEM_W,
+  TOTEM_H,
+  CRACK_STAGES,
+  composeTotem,
+  shatterPieces,
+  crackVents,
+  chipFlakes,
+} from '../art/sprites-totem.js';
 
 /** The dark before anything happens. */
 const DARK_MS = 3000;
@@ -52,11 +73,24 @@ const PROMPT_MS = 1200;
 /** How long the shards fly before the black lifts. */
 const BREAK_MS = 2000;
 
-/** How big the totem is at each stage, as a fraction of the frame's height. */
-const HEIGHT_STEPS = [0.42, 0.54, 0.68];
+/** How many taps it takes: one per crack overlay, then the one that breaks it. */
+const TAPS_TO_BREAK = CRACK_STAGES + 1;
 
-/** What the bottom of the screen says at each stage. */
-const PROMPTS = ['TAP', 'AGAIN', 'ONE MORE'];
+/**
+ * How big the totem is at each stage, as a fraction of the frame's height.
+ *
+ * It starts smaller than it used to and ends larger, because there is one more
+ * step in the sequence now and the growth is most of what the player reads as
+ * progress. The gaps are even: every tap is worth the same amount of totem.
+ */
+const HEIGHT_STEPS = [0.38, 0.49, 0.59, 0.70];
+
+/**
+ * The word at the bottom, and it is the same word every time — see the note at
+ * the top of the file. The final line replaces it only once there is nothing
+ * left to tap.
+ */
+const PROMPT = 'TAP';
 
 /**
  * Play the break.
@@ -68,10 +102,10 @@ const PROMPTS = ['TAP', 'AGAIN', 'ONE MORE'];
 export function playTotemRevival(opts = {}) {
   return new Promise((resolve) => {
     const canvas = el('canvas.totem-canvas');
-    const prompt = el('div.totem-prompt', { text: PROMPTS[0], 'aria-live': 'polite' });
+    const prompt = el('div.totem-prompt', { text: t(PROMPT), 'aria-live': 'polite' });
     const veil = el('div.totem-veil', {
       role: 'dialog',
-      'aria-label': 'The dusk totem',
+      'aria-label': t('The dusk totem'),
     }, [canvas, prompt]);
     (document.getElementById('app') || document.body).append(veil);
 
@@ -80,10 +114,10 @@ export function playTotemRevival(opts = {}) {
     const shake = getSettings().screenShake;
 
     /**
-     * `taps` is the state machine and there is nothing else to it: 0, 1, 2 are
-     * the whole totem and its two cracks, 3 is the break. `art` is re-composed
-     * on each tap rather than layered every frame, so the shards can be cut out
-     * of one finished picture.
+     * `taps` is the state machine and there is nothing else to it: 0 through 3
+     * are the whole totem and its three cracks, 4 is the break. `art` is
+     * re-composed on each tap rather than layered every frame, so the shards can
+     * be cut out of one finished picture.
      */
     const st = {
       t: 0,
@@ -94,10 +128,17 @@ export function playTotemRevival(opts = {}) {
       /** Eased towards the step above; the overshoot is what makes it land. */
       size: 0,
       sizeTo: HEIGHT_STEPS[0],
+      /** A scale punch on the frame of a tap, decaying back to 1. */
+      punch: 0,
       shakeMs: 0,
       flash: 0,
       breakAt: -1,
       pieces: null,
+      /** Expanding rings, one per tap. */
+      rings: [],
+      /** Sparks thrown out of the fissure, and chips of stone falling off it. */
+      sparks: [],
+      flakes: [],
       motes: makeMotes(),
       done: false,
     };
@@ -118,21 +159,35 @@ export function playTotemRevival(opts = {}) {
     // --- input -------------------------------------------------------------
 
     /** True once the totem is up and the prompt has been offered. */
-    const ready = () => st.wall >= DARK_MS + RISE_MS + PROMPT_MS && st.taps < 3 && !st.done;
+    const ready = () =>
+      st.wall >= DARK_MS + RISE_MS + PROMPT_MS && st.taps < TAPS_TO_BREAK && !st.done;
 
     function tap() {
       if (!ready()) return;
       st.taps += 1;
-      st.art = composeTotem(Math.min(2, st.taps));
+      const level = Math.min(CRACK_STAGES, st.taps);
+      st.art = composeTotem(level);
       st.shakeMs = 220 + st.taps * 130;
+      st.punch = 0.1 + st.taps * 0.035;
+      st.rings.push({ r: 0, life: 0, ttl: 560 + st.taps * 90 });
 
-      if (st.taps < 3) {
+      if (st.taps < TAPS_TO_BREAK) {
         st.sizeTo = HEIGHT_STEPS[st.taps];
-        prompt.textContent = PROMPTS[st.taps];
+        /**
+         * The word takes the hit but never changes. Restarting the animation
+         * needs the class off, a reflow, and the class back on — otherwise the
+         * second tap looks like it missed.
+         */
         prompt.classList.remove('is-struck');
         void prompt.offsetWidth;
         prompt.classList.add('is-struck');
+        // Everything that leaves the stone comes out of a hole that is really
+        // in it: see `crackVents` in src/art/sprites-totem.js.
+        st.sparks.push(...makeSparks(level, 14 + st.taps * 8));
+        st.flakes.push(...chipFlakes(level, 8 + st.taps * 4));
+        st.flash = Math.min(0.5, 0.14 + st.taps * 0.08);
         play('hit');
+        if (st.taps >= CRACK_STAGES) play('rumble');
         return;
       }
 
@@ -140,7 +195,8 @@ export function playTotemRevival(opts = {}) {
       st.breakAt = st.wall;
       st.flash = 1;
       st.pieces = shatterPieces(4, 7, Math.random);
-      prompt.textContent = opts.title || 'IT BREAKS INSTEAD OF YOU';
+      st.sparks.push(...makeSparks(CRACK_STAGES, 90));
+      prompt.textContent = t(opts.title || 'IT BREAKS INSTEAD OF YOU');
       prompt.classList.add('is-final');
       play('toll');
       play('levelUp');
@@ -197,6 +253,7 @@ export function playTotemRevival(opts = {}) {
       // The size chases its target rather than snapping to it, which is what
       // makes a tap feel like it landed on something with weight in it.
       st.size += (st.sizeTo - st.size) * Math.min(1, dt / 90);
+      if (st.punch > 0) st.punch = Math.max(0, st.punch - dt / 220);
       if (st.shakeMs > 0) st.shakeMs = Math.max(0, st.shakeMs - dt);
       if (st.flash > 0) st.flash = Math.max(0, st.flash - dt / 260);
 
@@ -204,6 +261,27 @@ export function playTotemRevival(opts = {}) {
         m.a += m.speed * dt;
         m.life += dt;
       }
+
+      // Rings, sparks and chips all die the same way: age past their span and
+      // get filtered out, so nothing here needs a timer of its own.
+      for (const ring of st.rings) ring.life += dt;
+      st.rings = st.rings.filter((ring) => ring.life < ring.ttl);
+
+      for (const s of st.sparks) {
+        s.x += s.vx * dt;
+        s.y += s.vy * dt;
+        s.vy += 0.00004 * dt;
+        s.life += dt;
+      }
+      st.sparks = st.sparks.filter((s) => s.life < s.ttl);
+
+      for (const f of st.flakes) {
+        f.x += f.vx * dt;
+        f.y += f.vy * dt;
+        f.vy += 0.00009 * dt; // heavier than a spark: it is a piece of the totem
+        f.life += dt;
+      }
+      st.flakes = st.flakes.filter((f) => f.life < f.ttl);
 
       if (st.pieces) {
         for (const p of st.pieces) {
@@ -237,16 +315,28 @@ export function playTotemRevival(opts = {}) {
       // shaking the totem inside a still frame.
       let ox = 0;
       let oy = 0;
-      if (shake && st.shakeMs > 0) {
-        const k = st.shakeMs / 8;
-        ox = (Math.random() * 2 - 1) * k;
-        oy = (Math.random() * 2 - 1) * k;
+      if (shake) {
+        /**
+         * TWO SHAKES, AND ONLY ONE OF THEM IS A HIT
+         * -----------------------------------------------------------------
+         * `shakeMs` is the blow: big, and gone in a fifth of a second. The
+         * tremble underneath it is the totem's own, it never stops once the
+         * stone is cracked, and it gets worse with every split — which is how
+         * the frame says "this thing is about to go" without a word of type.
+         */
+        const hit = st.shakeMs > 0 ? st.shakeMs / 8 : 0;
+        const tremble = st.pieces ? 0 : st.taps * 0.5;
+        const k = hit + tremble;
+        if (k > 0) {
+          ox = (Math.random() * 2 - 1) * k;
+          oy = (Math.random() * 2 - 1) * k;
+        }
       }
 
       // Height in CSS pixels, quantised to whole source pixels so the carving
       // never lands on a fractional scale and turns to mush.
       const rise = easeOutBack(appear);
-      const targetH = view.h * st.size * (0.55 + 0.45 * rise);
+      const targetH = view.h * st.size * (0.55 + 0.45 * rise) * (1 + st.punch);
       const scale = Math.max(1, Math.round(targetH / TOTEM_H));
       const w = TOTEM_W * scale;
       const h = TOTEM_H * scale;
@@ -256,10 +346,15 @@ export function playTotemRevival(opts = {}) {
 
       ctx.globalAlpha = appear;
       drawGlow(cx + ox, cy + bob + oy, h, appear);
+      drawRings(cx + ox, cy + bob + oy, h, appear);
       drawMotes(cx + ox, cy + bob + oy, h, appear);
+      if (!st.pieces && st.taps >= CRACK_STAGES) drawBeams(x, y, scale, appear);
 
       if (st.pieces) drawShards(x, y, scale);
       else ctx.drawImage(st.art, x, y, w, h);
+
+      drawFlakes(x, y, scale, appear);
+      drawSparks(x, y, scale, appear);
 
       ctx.globalAlpha = 1;
       if (st.flash > 0) {
@@ -272,14 +367,35 @@ export function playTotemRevival(opts = {}) {
 
     /** The ember behind it, brighter with every crack. */
     function drawGlow(cx, cy, h, alpha) {
-      const heat = 0.55 + st.taps * 0.28 + Math.sin(st.t / 380) * 0.06;
-      const r = h * (0.85 + st.taps * 0.14);
+      const heat = 0.55 + st.taps * 0.26 + Math.sin(st.t / 380) * 0.06;
+      const r = h * (0.85 + st.taps * 0.13);
       const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
       grad.addColorStop(0, hexA(PALETTE.emberGlow, 0.62 * heat * alpha));
       grad.addColorStop(0.35, hexA(PALETTE.magma, 0.3 * heat * alpha));
       grad.addColorStop(1, hexA(PALETTE.cosmic, 0));
       ctx.fillStyle = grad;
       ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    }
+
+    /**
+     * The blow going out through the air.
+     *
+     * A tap needs somewhere to go that is not the totem, or the only thing that
+     * reports the hit is the shake — and a shake with nothing in it reads as a
+     * dropped frame. The ring is one thin ellipse, wider than it is tall
+     * because the scene is looking at the totem side-on, and it is gone before
+     * the player has finished registering it.
+     */
+    function drawRings(cx, cy, h, alpha) {
+      for (const ring of st.rings) {
+        const p = ring.life / ring.ttl;
+        const r = h * (0.24 + p * 0.95);
+        ctx.strokeStyle = hexA(PALETTE.emberGlow, (1 - p) * 0.5 * alpha);
+        ctx.lineWidth = Math.max(1, h * 0.012 * (1 - p));
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, r, r * 0.42, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
 
     /** Dust turning around it, so the dark is not empty while it floats. */
@@ -292,6 +408,63 @@ export function playTotemRevival(opts = {}) {
         const size = Math.max(1, Math.round(h * 0.012 * m.size));
         ctx.globalAlpha = alpha * (0.25 + 0.45 * (0.5 + 0.5 * Math.sin(m.life / 320)));
         ctx.fillRect(Math.round(px), Math.round(py), size, size);
+      }
+      ctx.globalAlpha = alpha;
+    }
+
+    /**
+     * Light leaving the fissure sideways, once the crack goes all the way down.
+     *
+     * Only on the last stage before the break, and only from the hottest vents:
+     * a beam out of every hole would fog the carving, and the point of the
+     * final stage is that the stone can no longer contain what is inside it.
+     */
+    function drawBeams(x, y, scale, alpha) {
+      const vents = crackVents(CRACK_STAGES).filter((v) => v.hot);
+      const pulse = 0.55 + 0.45 * Math.sin(st.t / 210);
+      for (let i = 0; i < vents.length; i += 3) {
+        const v = vents[i];
+        const px = x + (v.x + 0.5) * scale;
+        const py = y + (v.y + 0.5) * scale;
+        const len = scale * (2.2 + 2.6 * pulse);
+        const grad = ctx.createLinearGradient(px - len, py, px + len, py);
+        grad.addColorStop(0, hexA(PALETTE.emberGlow, 0));
+        grad.addColorStop(0.5, hexA(PALETTE.white, 0.4 * pulse * alpha));
+        grad.addColorStop(1, hexA(PALETTE.emberGlow, 0));
+        ctx.fillStyle = grad;
+        ctx.fillRect(px - len, py - scale * 0.4, len * 2, Math.max(1, scale * 0.8));
+      }
+    }
+
+    /** Sparks out of the split, drawn as streaks so they read as fast. */
+    function drawSparks(x, y, scale, alpha) {
+      for (const s of st.sparks) {
+        const p = s.life / s.ttl;
+        const px = x + s.x * scale;
+        const py = y + s.y * scale;
+        const size = Math.max(1, Math.round(scale * 0.55 * (1 - p)));
+        ctx.fillStyle = p < 0.35 ? PALETTE.white : s.hot ? PALETTE.emberGlow : PALETTE.magma;
+        ctx.globalAlpha = alpha * (1 - p);
+        // A short tail along the direction of travel, so the eye reads speed.
+        ctx.fillRect(
+          Math.round(px - s.vx * scale * 26),
+          Math.round(py - s.vy * scale * 26),
+          size,
+          size,
+        );
+        ctx.fillRect(Math.round(px), Math.round(py), size, size);
+      }
+      ctx.globalAlpha = alpha;
+    }
+
+    /** Chips of stone knocked loose, falling out of frame. */
+    function drawFlakes(x, y, scale, alpha) {
+      for (const f of st.flakes) {
+        const p = f.life / f.ttl;
+        ctx.fillStyle = f.hot ? PALETTE.magma : PALETTE.voidRockLight;
+        ctx.globalAlpha = alpha * (1 - p * p);
+        const size = Math.max(1, Math.round(scale * f.size * 0.7));
+        ctx.fillRect(Math.round(x + f.x * scale), Math.round(y + f.y * scale), size, size);
       }
       ctx.globalAlpha = alpha;
     }
@@ -359,12 +532,42 @@ function makeMotes() {
   return out;
 }
 
+/**
+ * Sparks thrown out of the fissure that is actually showing.
+ *
+ * They start at a vent — a lit cell of the crack overlay, in source pixels —
+ * and leave roughly perpendicular to the stone, which means the left-hand
+ * branches spit left and the spine spits forward. Random directions from the
+ * middle of the totem looked like a firework going off behind it.
+ */
+function makeSparks(level, count) {
+  const vents = crackVents(level);
+  if (!vents.length) return [];
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const v = vents[Math.floor(Math.random() * vents.length)];
+    const away = v.x < TOTEM_W / 2 ? -1 : 1;
+    const speed = 0.012 + Math.random() * 0.03;
+    const spread = (Math.random() * 2 - 1) * 0.6;
+    out.push({
+      x: v.x,
+      y: v.y,
+      vx: away * speed * (0.6 + Math.random() * 0.7),
+      vy: -speed * 0.55 + spread * speed,
+      hot: v.hot,
+      life: 0,
+      ttl: 380 + Math.random() * 460,
+    });
+  }
+  return out;
+}
+
 const clamp01 = (n) => Math.max(0, Math.min(1, n));
 
 /** Overshoot and settle — the totem arrives, it does not slide into place. */
-function easeOutBack(t) {
+function easeOutBack(n) {
   const c = 1.7;
-  const p = t - 1;
+  const p = n - 1;
   return 1 + (c + 1) * p * p * p + c * p * p;
 }
 

@@ -6,6 +6,7 @@
  */
 
 import { el, wait } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { go } from '../core/router.js';
 import { attachButtonSounds, play, playMusic } from '../core/audio.js';
 import { setRenderer } from '../core/scene.js';
@@ -52,11 +53,11 @@ export const WorldIntroScreen = {
     const screen = el('div.screen.intro-screen', {
       onclick: advance,
       role: 'button',
-      'aria-label': `${world.name}. Continue.`,
+      'aria-label': t('{world}. Continue.', { world: t(world.name) }),
     }, [
       el('div.panel.panel--paper.poster.intro-card', {}, [
         el('div.intro-eyebrow', {
-          text: isFinal ? 'The last horizon' : `World ${worldId} of ${FINAL_WORLD}`,
+          text: isFinal ? 'The last horizon' : t('World {n} of {total}', { n: worldId, total: FINAL_WORLD }),
         }),
         el('h1.intro-title', { text: world.name }),
         el('p.intro-sub', { text: world.subtitle }),
@@ -116,7 +117,7 @@ export const VictoryScreen = {
       el('div.panel.panel--braced.poster', {}, [
         el('div.result-banner.is-win', {}, [
           el('div.headline', { text: 'The Stranger Falls' }),
-          el('div.muted', { text: `${profile.name} rode past the last horizon and came back` }),
+          el('div.muted', { text: t('{name} rode past the last horizon and came back', { name: t(profile.name) }) }),
           /**
            * Finishing the hard road is the largest thing anybody does in this
            * game, and the card it ends on should say so rather than looking
@@ -200,7 +201,7 @@ export const GameOverScreen = {
         el('p.center', {
           style: { marginTop: 'var(--sp-4)', color: 'var(--red-light)' },
           text: slot
-            ? `Slot ${slot} has been erased. That run is gone for good.`
+            ? t('Slot {slot} has been erased. That run is gone for good.', { slot })
             : 'That run has been erased. It is gone for good.',
         }),
         el('p.muted.center', {

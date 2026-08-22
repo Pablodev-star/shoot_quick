@@ -26,7 +26,8 @@
  * All rules live in duel-engine.js. This file never decides an outcome.
  */
 
-import { el, clearNode, wait } from '../core/dom.js';
+import { el, clearNode, wait, setText, setTip } from '../core/dom.js';
+import { t, tPlural } from '../core/i18n.js';
 import { attachButtonSounds, play, playMusic } from '../core/audio.js';
 import { setRenderer } from '../core/scene.js';
 import { EVENTS, on } from '../core/events.js';
@@ -349,11 +350,14 @@ export const DuelScreen = {
         // "Three lives an eruption" is the wrong promise for a charge special:
         // the whole threat is that they arrive together, and a player reading
         // the card is deciding whether they can afford to trade rounds with it.
-        const rate =
-          spec.pattern === 'charge'
-            ? `${cost} ${cost === 1 ? 'life' : 'lives'} in one shot`
-            : `${cost} ${cost === 1 ? 'life' : 'lives'} an eruption`;
-        const tip = `${spec.label} — ${spec.tip}. ${rate}`;
+        const rate = spec.pattern === 'charge'
+          ? tPlural(cost, '1 life in one shot', '{count} lives in one shot')
+          : tPlural(cost, '1 life an eruption', '{count} lives an eruption');
+        const tip = t('{label} — {what}. {rate}', {
+          label: t(spec.label),
+          what: t(spec.tip),
+          rate,
+        });
         badge.dataset.tip = tip;
         badge.setAttribute('aria-label', tip);
       }
@@ -386,7 +390,7 @@ export const DuelScreen = {
         const left = st[key] || 0;
         if (left <= 0) continue;
         row.append(
-          effectBadge(key, { label: `${label} — ${left} left`, iconName, tone, count: left }),
+          effectBadge(key, { label: t('{label} — {left} left', { label: t(label), left }), iconName, tone, count: left }),
         );
       }
       if (side.hasVest) {
@@ -512,7 +516,7 @@ export const DuelScreen = {
         onclick: () => submit(move),
         dataset: { sfx: MOVE_SFX[move] },
         'data-tip': tip,
-        'aria-label': `${label}. ${tip}`,
+        'aria-label': `${t(label)}. ${t(tip)}`,
       }, [
         uiIcon(iconName, 1.3),
         el('span.duel-btn-label', {}, [label, el('span.kbd', { text: key })]),
@@ -588,8 +592,8 @@ export const DuelScreen = {
         const key = index === 0 ? 'Q' : 'E';
         const plate = el('button.btn.ability-plate', {
           onclick: () => castAbility(slot.itemId),
-          'data-tip': `${slot.spec.label} — ${slot.spec.desc}`,
-          'aria-label': `${slot.spec.label}. ${slot.spec.desc}`,
+          'data-tip': `${t(slot.spec.label)} — ${t(slot.spec.desc)}`,
+          'aria-label': `${t(slot.spec.label)}. ${t(slot.spec.desc)}`,
         }, [
           icon(slot.spec.icon, 1.2),
           el('span.ability-name', {}, [slot.spec.label, el('span.kbd', { text: key })]),
@@ -613,7 +617,7 @@ export const DuelScreen = {
         plate.classList.toggle('is-ready', slot.ready);
         plate.classList.toggle('is-spent', slot.spent);
         plate.disabled = !slot.ready || finished;
-        if (slot.spent) plate.dataset.tip = `${slot.spec.label} — spent for this duel`;
+        if (slot.spent) plate.dataset.tip = t('{label} — spent for this duel', { label: t(slot.spec.label) });
       }
     }
 
@@ -672,7 +676,9 @@ export const DuelScreen = {
       renderStatus(playerStatus, sides.player);
       renderStatus(enemyStatus, sides.enemy);
       syncStatusTints();
-      roundPill.textContent = `Round ${Math.max(1, duel.getRound() + (localAgent.isWaiting() ? 1 : 0))}`;
+      setText(roundPill, 'Round {n}', {
+        n: Math.max(1, duel.getRound() + (localAgent.isWaiting() ? 1 : 0)),
+      });
 
       // Shoot swaps its cost strip for "Empty" when the cylinder is out, so a
       // disabled button still says why it is disabled.
@@ -742,7 +748,7 @@ export const DuelScreen = {
         // A self-buff plays over the fighter that cast it, which for a player
         // cast is the player. Everything else lands on the rival.
         scene.castAbilityFx(spec.fx, spec.fx?.self ? 'player' : 'enemy');
-        scene.fx.banner = spec.banner || spec.label.toUpperCase();
+        scene.fx.banner = spec.banner || spec.label;
         scene.fx.bannerTimer = 900;
         // Nothing has hit anybody yet when a blast is cast — the stick is still
         // in the air. Its noise belongs to the detonation, a round later.
@@ -766,13 +772,13 @@ export const DuelScreen = {
      */
     function announcePlayerSpecial(spec) {
       scene.setHazard(spec, 'player');
-      scene.fx.banner = spec.banner || spec.label.toUpperCase();
+      scene.fx.banner = spec.banner || spec.label;
       scene.fx.bannerTimer = 1500;
       scene.fx.shake = 700;
       scene.fx.rays = 0.7;
       playerHazardUp = true;
       play(spec.sfx || 'toll');
-      setCallout(`You call down the ${spec.label.toLowerCase()}`, 'is-good');
+      setCallout(t('You call down the {trick}', { trick: t(spec.label).toLowerCase() }), 'is-good');
     }
 
     /**
@@ -986,7 +992,7 @@ export const DuelScreen = {
       scene.fx.rays = 0.85;
       scene.fx.slam = 150;
       play(spec.sfx || 'toll');
-      setCallout(`${enemy.name} calls up the ${spec.label.toLowerCase()}`, 'is-bad');
+      setCallout(t('{name} calls up the {trick}', { name: t(enemy.name), trick: t(spec.label).toLowerCase() }), 'is-bad');
       renderAbilities();
       hazardChip.hidden = false;
 
@@ -1034,7 +1040,7 @@ export const DuelScreen = {
         if (entry.owner === 'enemy') {
           scene.fx.banner = entry.spec.chargeBanner || 'IT IS GATHERING';
           scene.fx.bannerTimer = 1500;
-          setCallout(`The ${entry.spec.label.toLowerCase()} is winding up`, 'is-bad');
+          setCallout(t('The {trick} is winding up', { trick: t(entry.spec.label).toLowerCase() }), 'is-bad');
         }
         play('rumble');
         return;
@@ -1218,21 +1224,30 @@ export const DuelScreen = {
       if (key === hazardChipKey) return;
       hazardChipKey = key;
       hazardChip.hidden = false;
+      /**
+       * One whole sentence per state rather than a label with a suffix stuck on
+       * it. The suffixes are shouted words — FIRED, NOW, ERUPTING — and a word
+       * on its own has no translation until you know what it is attached to.
+       */
+      const shown = t(label);
       hazardChip.textContent =
         phase === 'dormant'
-          ? `${label} · ${hz.secondsToNext()}s`
+          ? t('{label} · {seconds}s', { label: shown, seconds: hz.secondsToNext() })
           : pct >= 0
-            ? `${label} · CHARGING ${pct}%`
+            ? t('{label} · CHARGING {pct}%', { label: shown, pct })
             : spent
-              ? `${label} · FIRED`
+              ? t('{label} · FIRED', { label: shown })
               : phase === 'warning'
-                ? `${label} · NOW`
-                : `${label} · ERUPTING`;
+                ? t('{label} · NOW', { label: shown })
+                : t('{label} · ERUPTING', { label: shown });
       hazardChip.classList.toggle('is-erupting', phase !== 'dormant');
       const cost = specialDamage(hz.spec);
-      hazardChip.dataset.tip = `${hz.spec.tip}. ${
-        hz.getPattern() === 'charge' ? `${cost} lives in one shot` : `${cost} lives an eruption`
-      }`;
+      hazardChip.dataset.tip = t('{what}. {rate}', {
+        what: t(hz.spec.tip),
+        rate: hz.getPattern() === 'charge'
+          ? tPlural(cost, '1 life in one shot', '{count} lives in one shot')
+          : tPlural(cost, '1 life an eruption', '{count} lives an eruption'),
+      });
     }
 
     /**
@@ -1282,7 +1297,7 @@ export const DuelScreen = {
        */
       if (res.enemyMove === MOVES.RELOAD) play('reload');
 
-      if (res.playerMove) setCallout(`${moveWord(res.playerMove)} vs ${moveWord(res.enemyMove)}`);
+      if (res.playerMove) setCallout(t('{mine} vs {theirs}', { mine: t(moveWord(res.playerMove)), theirs: t(moveWord(res.enemyMove)) }));
       // Long enough for the four-frame draw to finish: the guns are up before
       // either of them can go off.
       await wait(DRAW_MS);
@@ -1427,8 +1442,8 @@ export const DuelScreen = {
               // gets serious and it has to look like it before the player has
               // taken a single round of the new phase.
               scene.setAura(next.aura || 0);
-              enemyName.textContent = next.name;
-              if (next.look) enemyName.dataset.tip = next.look;
+              setText(enemyName, next.name);
+              if (next.look) setTip(enemyName, next.look);
               else delete enemyName.dataset.tip;
               renderAbilities();
               syncBars();
@@ -1576,7 +1591,7 @@ export const DuelScreen = {
           el('div', { class: `result-banner ${won ? 'is-win' : 'is-loss'}` }, [
             el('div.headline', { text: won ? 'Duel won' : 'Duel lost' }),
             el('div.muted', {
-              text: `${enemy.name} · ${roundLog.length} rounds${sandbox ? ' · sandbox' : ''}`,
+              text: t(sandbox ? '{name} · {rounds} rounds · sandbox' : '{name} · {rounds} rounds', { name: t(enemy.name), rounds: roundLog.length }),
             }),
           ]),
           el('div.stat-grid', {}, [
@@ -1609,7 +1624,7 @@ export const DuelScreen = {
                 if (sandbox) goToRoad();
                 else resolveDuel({ won, enemy, isBoss, worldId });
               },
-            }, [sandbox ? 'Back to the road' : won ? 'Back to the road' : 'Continue']),
+            }, [sandbox || won ? 'Back to the road' : 'Continue']),
           ]),
         ]),
       ]);
@@ -1705,7 +1720,7 @@ export const DuelScreen = {
       // will notice and the last thing they will be able to explain, so the
       // meal that put them there says so on the way in.
       if (boon?.bullets) {
-        toast(`${boon.label} — ${boon.bullets} rounds already loaded`, 'good', 'reload');
+        toast(t('{label} — {bullets} rounds already loaded', { label: t(boon.label), bullets: boon.bullets }), 'good', 'reload');
       }
       // The hazard clock starts with the fight, not with the screen: a
       // cut-scene is not time the volcano gets to count.
@@ -1770,7 +1785,7 @@ function gunChip(damage) {
       // a sixgun instead of every gun being squeezed into one box.
       style: { height: '16px', width: `${Math.round((art.width / art.height) * 16)}px` },
     }),
-    el('span', { text: `${cost} a shot` }),
+    el('span', { text: t('{cost} a shot', { cost }) }),
   ]);
 }
 

@@ -21,6 +21,7 @@
  */
 
 import { el } from '../core/dom.js';
+import { t } from '../core/i18n.js';
 import { EVENTS, emit } from '../core/events.js';
 import { read, write, keys as storageKeys } from '../core/storage.js';
 import { getState, serialize as serializePlayer, restore as restorePlayer, announce } from '../game/player.js';
@@ -59,7 +60,7 @@ export const LabTab = {
     allSlotAccess(SLOT_COUNT).then((list) => {
       doors.replaceChildren(
         ...list.map((entry) => el('div.admin-kv', {}, [
-          el('span.k', { text: `Slot ${entry.slot}` }),
+          el('span.k', { text: t('Slot {slot}', { slot: entry.slot }) }),
           el('span.v', {
             text: entry.unlocked
               ? `open since ${new Date(entry.at).toLocaleString()}`
@@ -122,7 +123,7 @@ export const LabTab = {
 
       section('The ledger', [
         readout([
-          ['Unlocked', `${ledger.unlockedCount} of ${ledger.total} (${ledger.percent}%)`],
+          ['Unlocked', t('{done} of {total} ({percent}%)', { done: ledger.unlockedCount, total: ledger.total, percent: ledger.percent })],
         ]),
         buttons([
           action('Unlock everything', () => {
@@ -168,7 +169,14 @@ export const LabTab = {
 
       section('What this session has done', [
         AUDIT.length
-          ? dump(AUDIT.map((entry) => `${new Date(entry.at).toLocaleTimeString()}  ${entry.what}${entry.detail ? `  (${entry.detail})` : ''}`).join('\n'))
+          ? dump(AUDIT.map((entry) => {
+              // A `{ was }` detail arrives unworded from src/admin/overrides.js.
+              const detail = entry.detail?.was
+                ? t('was {before}', { before: entry.detail.was })
+                : entry.detail;
+              const at = new Date(entry.at).toLocaleTimeString();
+              return `${at}  ${t(entry.what)}${detail ? `  (${detail})` : ''}`;
+            }).join('\n'))
           : el('p.admin-hint', { text: 'Nothing yet.' }),
         buttons([
           action('Put every override back', () => {
@@ -213,12 +221,12 @@ function rollRiders(worldId, count) {
     enemy.abilities.forEach((id) => abilities.push(id));
   }
   return [
-    `W${worldId} ${world.name} — ${count} riders`,
+    t('W{id} {world} — {count} riders', { id: worldId, world: t(world.name), count }),
     '  lives',
     asShare(tally(lives), count),
     `  carrying a trick   ${((withTrick / count) * 100).toFixed(2)}%  (table says ${(world.enemy.abilityChance * 100).toFixed(0)}%${worldId >= 4 ? ' + a second roll' : ''})`,
     `  carrying the landmark ${((withSpecial / count) * 100).toFixed(2)}%  (table says ${((world.enemy.specialChance || 0) * 100).toFixed(0)}%)`,
-    `  mean bullet        ${(damage / count).toFixed(3)} lives`,
+    t('  mean bullet        {n} lives', { n: (damage / count).toFixed(3) }),
     abilities.length ? '  which tricks\n' + asShare(tally(abilities), abilities.length) : '  no tricks rolled',
   ].join('\n');
 }
@@ -253,13 +261,13 @@ function rollRoads(worldId, count, player) {
     }
   }
   return [
-    `W${worldId} ${world.name} — ${count} roads dealt against the run as it stands`,
-    `  reading: health ${state.health.toFixed(2)} · belly ${state.belly.toFixed(2)} · purse ${state.purse.toFixed(2)} · food ${state.stocked} · rung ${state.canAffordRung}`,
+    t('W{id} {world} — {count} roads dealt against the run as it stands', { id: worldId, world: t(world.name), count }),
+    t('  reading: health {health} · belly {belly} · purse {purse} · food {food} · rung {rung}', { health: state.health.toFixed(2), belly: state.belly.toFixed(2), purse: state.purse.toFixed(2), food: state.stocked, rung: state.canAffordRung }),
     '  what the stops came out as',
     asShare(tally(kinds), stops),
     '  the first stop of the world',
     asShare(tally(firsts), count),
-    `  two buildings in a row: ${adjacentBuildings} across ${count} roads (the floor says it cannot happen while a fight is in reserve)`,
+    t('  two buildings in a row: {n} across {count} roads (the floor says it cannot happen while a fight is in reserve)', { n: adjacentBuildings, count }),
   ].join('\n');
 }
 
@@ -280,10 +288,10 @@ function rollShops(worldId, count) {
     }
   }
   return [
-    `W${worldId} ${world.name} — ${count} visits, ${slots} slots`,
+    t('W{id} {world} — {count} visits, {slots} slots', { id: worldId, world: t(world.name), count, slots }),
     '  rarity of what was on the shelf',
     asShare(tally(rarities), slots),
-    `  discounted: ${((discounted / slots) * 100).toFixed(2)}%`,
+    t('  discounted: {pct}%', { pct: ((discounted / slots) * 100).toFixed(2) }),
     '  the ten commonest things to find',
     asShare(
       Object.fromEntries(Object.entries(tally(items)).sort((a, b) => b[1] - a[1]).slice(0, 10)),
@@ -338,7 +346,7 @@ function pasteBox(ctx) {
           ctx.toast('The run is whatever you just pasted', 'gold');
           ctx.refresh();
         } catch (err) {
-          ctx.toast(`That is not a run: ${err.message}`, 'bad');
+          ctx.toast(t('That is not a run: {message}', { message: err.message }), 'bad');
         }
       }, { variant: 'btn--danger' }),
     ]),

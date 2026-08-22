@@ -15,6 +15,10 @@ import { startMenuScene } from './menu-scene.js';
 import { getProfile } from '../core/settings.js';
 import { openHowToPlay } from '../ui/help.js';
 
+/**
+ * Printed under the logo and again on the credits. It is translated like
+ * everything else — "Definitive Edition" is a phrase, not a version number.
+ */
 export const VERSION = 'v1.0 · Definitive Edition';
 
 export const TitleScreen = {

@@ -28,11 +28,12 @@
 
 import { el, clearNode } from '../core/dom.js';
 import { back } from '../core/router.js';
+import { t } from '../core/i18n.js';
 import { attachButtonSounds, play } from '../core/audio.js';
 import { readAllSlots, deleteSlot, describeSlot, SLOT_COUNT } from './save.js';
 import { getWorld, FINAL_WORLD } from './worlds.js';
 import { startNewRun, loadRun } from './run.js';
-import { livesRow, icon, uiIcon, backButton, iconButton } from '../ui/widgets.js';
+import { livesRow, icon, uiIcon, backButton, iconButton, select } from '../ui/widgets.js';
 import { startMenuScene } from '../menu/menu-scene.js';
 import { toast } from '../ui/toast.js';
 import { confirmDialog } from '../ui/confirm.js';
@@ -47,12 +48,12 @@ import {
 function timeAgo(ts) {
   if (!ts) return 'never';
   const mins = Math.floor((Date.now() - ts) / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1) return t('just now');
+  if (mins < 60) return t('{n} min ago', { n: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} h ago`;
+  if (hours < 24) return t('{n} h ago', { n: hours });
   const days = Math.floor(hours / 24);
-  return days === 1 ? 'yesterday' : `${days} days ago`;
+  return days === 1 ? t('yesterday') : t('{n} days ago', { n: days });
 }
 
 export const SlotsScreen = {
@@ -139,7 +140,7 @@ export const SlotsScreen = {
           class: hardRun ? 'is-hard' : '',
         }, [
           el('div.slot-head', {}, [
-            el('span.slot-name', { text: `Slot ${slot}` }),
+            el('span.slot-name', { text: t('Slot {slot}', { slot }) }),
             /**
              * A hard run says so on the card and everywhere else it can. It
              * is the one thing about a slot that cannot be changed and cannot
@@ -182,7 +183,7 @@ export const SlotsScreen = {
             ]),
             iconButton('close', {
               onClick: () => erase(slot),
-              label: `Erase slot ${slot}`,
+              label: t('Erase slot {slot}', { slot }),
               tip: 'Erase this run',
               variant: 'btn--danger',
             }),
@@ -218,22 +219,29 @@ export const SlotsScreen = {
        */
       const startButton = el('button.btn.btn--gold.slot-start', {
         onclick: () => start(slot),
-        'aria-label': `Start a new ${info.name} run in slot ${slot}`,
+        'aria-label': t('Start a new {mode} run in slot {slot}', { mode: t(info.name), slot }),
       }, [uiIcon('plus', 1.1), el('span', { text: 'Ride out' })]);
 
       if (!hardOpen) {
         return el('div.panel.slot-card.is-empty', {}, [
           uiIcon('plus', 2),
           el('span.slot-world', { text: 'New run' }),
-          el('span.slot-name', { text: `Slot ${slot}` }),
+          el('span.slot-name', { text: t('Slot {slot}', { slot }) }),
           startButton,
         ]);
       }
 
-      const select = el('select.slot-difficulty', {
-        'aria-label': `Difficulty for slot ${slot}`,
-        onchange: (e) => {
-          const next = e.currentTarget.value;
+      /**
+       * The game's own list, not the operating system's — see `select` in
+       * src/ui/widgets.js. This was the last <select> on a screen the player
+       * sees before a run starts, and a system dropdown opening white over the
+       * saloon was the worst place in the game to break the spell.
+       */
+      const modePicker = select({
+        value: pick,
+        label: t('Difficulty for slot {slot}', { slot }),
+        options: DIFFICULTIES.map((d) => ({ value: d.id, label: d.name })),
+        onChange: (next) => {
           chosen.set(slot, next);
           /**
            * Choosing the hard road LIGHTS it, and the flare has to happen on
@@ -247,19 +255,16 @@ export const SlotsScreen = {
           play(next === 'hard' ? 'fuse' : 'click');
           render();
         },
-      }, DIFFICULTIES.map((d) => el('option', {
-        value: d.id,
-        selected: d.id === pick ? 'selected' : null,
-      }, [d.name])));
+      });
 
       return el('div.panel.slot-card.is-empty', {
         class: pick === 'hard' ? 'is-hard' : '',
       }, [
         el('span.slot-world', { text: 'New run' }),
-        el('span.slot-name', { text: `Slot ${slot}` }),
-        el('label.slot-mode', {}, [
+        el('span.slot-name', { text: t('Slot {slot}', { slot }) }),
+        el('div.slot-mode', {}, [
           el('span.slot-mode-label', { text: 'Mode' }),
-          select,
+          modePicker,
         ]),
         // The honest list, straight off the mode — see `changes` in
         // src/game/difficulty.js. It is written down there and nowhere else,
@@ -286,13 +291,13 @@ export const SlotsScreen = {
     async function erase(slot) {
       const confirmed = await confirmDialog({
         title: 'Erase this run?',
-        body: `Everything in slot ${slot} is lost for good. There is no way back.`,
+        body: t('Everything in slot {slot} is lost for good. There is no way back.', { slot }),
         confirmLabel: 'Erase it',
         danger: true,
       });
       if (!confirmed) return;
       await deleteSlot(slot);
-      toast(`Slot ${slot} erased`, 'bad');
+      toast(t('Slot {slot} erased', { slot }), 'bad');
       render();
     }
 
@@ -300,7 +305,7 @@ export const SlotsScreen = {
       el('div.screen-header', {}, [
         backButton(() => back('title')),
         el('h1.screen-title', { text: 'Story Mode' }),
-        el('span.chip', { text: `${SLOT_COUNT} slots` }),
+        el('span.chip', { text: t('{n} slots', { n: SLOT_COUNT }) }),
       ]),
       el('div.screen-body', {}, [
         grid,

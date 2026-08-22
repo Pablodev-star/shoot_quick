@@ -30,6 +30,7 @@
  */
 
 import { el, clearNode } from '../core/dom.js';
+import { t, tPlural } from '../core/i18n.js';
 import { EVENTS, on } from '../core/events.js';
 import { getState, expProgress, getBoon } from '../game/player.js';
 import { getWorld, FINAL_WORLD } from '../game/worlds.js';
@@ -58,7 +59,7 @@ export function trailBand(opts = {}) {
    * it said nothing about how close the next one was — and the exp total was
    * already being computed here for the tooltip nobody hovers on a phone.
    */
-  const levelValue = el('span', { text: `Lv ${player.level}` });
+  const levelValue = el('span', { text: t('Lv {n}', { n: player.level }) });
   const levelChip = el('span.chip.chip--level', {}, [levelValue]);
   /**
    * A level-up is the slowest reward in the game — three of them every two
@@ -75,9 +76,13 @@ export function trailBand(opts = {}) {
   };
   const syncLevel = (level) => {
     const p = expProgress();
-    levelValue.textContent = `Lv ${level}`;
+    levelValue.textContent = t('Lv {n}', { n: level });
     levelChip.style.setProperty('--exp', `${Math.round(p.ratio * 100)}%`);
-    levelChip.dataset.tip = `${p.exp} / ${p.next} exp to level ${level + 1}`;
+    levelChip.dataset.tip = t('{exp} / {next} exp to level {level}', {
+      exp: p.exp,
+      next: p.next,
+      level: level + 1,
+    });
   };
 
   /**
@@ -96,9 +101,17 @@ export function trailBand(opts = {}) {
     if (!boon) return;
     clearNode(boonChip);
     boonChip.append(icon('feast', 1), el('span', { text: `${boon.duels}` }));
-    boonChip.dataset.tip =
-      `${boon.label} — the next ${boon.duels === 1 ? 'duel starts' : `${boon.duels} duels start`} ` +
-      `with ${boon.bullets} rounds loaded`;
+    /**
+     * Written out as two whole sentences rather than assembled from a stem and
+     * a plural, because Spanish does not agree the way English does — see the
+     * note on `tPlural` in src/core/i18n.js.
+     */
+    boonChip.dataset.tip = tPlural(
+      boon.duels,
+      '{label} — the next duel starts with {bullets} rounds loaded',
+      '{label} — the next {count} duels start with {bullets} rounds loaded',
+      { label: t(boon.label), bullets: boon.bullets },
+    );
   };
   syncBoon();
 
@@ -139,8 +152,8 @@ export function trailBand(opts = {}) {
       flare();
     }),
     on(EVENTS.WORLD_CHANGED, ({ world: id }) => {
-      worldLabel.textContent = getWorld(id).name;
-      worldLabel.dataset.tip = `World ${id} of ${FINAL_WORLD}`;
+      worldLabel.textContent = t(getWorld(id).name);
+      worldLabel.dataset.tip = t('World {n} of {total}', { n: id, total: FINAL_WORLD });
     }),
     on(EVENTS.BOON_CHANGED, syncBoon),
   ];
@@ -159,8 +172,10 @@ export function trailBand(opts = {}) {
      */
     const syncDrain = () => {
       const { total, horse, weatherLabel, canteen } = drainMultiplier();
-      const faster = [horse && 'the horse', weatherLabel && `the ${weatherLabel.toLowerCase()}`]
-        .filter(Boolean);
+      const faster = [
+        horse && t('the horse'),
+        weatherLabel && t('the {weather}', { weather: t(weatherLabel).toLowerCase() }),
+      ].filter(Boolean);
       // No badge without something to name in it: a multiplier the player
       // cannot attribute is worse than no multiplier.
       if (Math.abs(total - 1) <= 0.001 || (!faster.length && !canteen)) {
@@ -168,18 +183,25 @@ export function trailBand(opts = {}) {
         return;
       }
       const burning = total > 1;
-      const subject = burning ? faster.join(' and ') : 'the canteen';
+      const subject = burning ? faster.join(t(' and ')) : t('the canteen');
       // The other half of the sum, when there is one. A player wearing both a
       // canteen and a sandstorm is owed the reason the number is still 1.0.
       const aside = burning
-        ? (canteen ? ', even with the canteen' : '')
-        : (faster.length ? `, despite ${faster.join(' and ')}` : '');
+        ? (canteen ? t(', even with the canteen') : '')
+        : (faster.length ? t(', despite {reasons}', { reasons: faster.join(t(' and ')) }) : '');
+      /**
+       * Four whole sentences rather than a stem, a verb and a tail glued
+       * together. English only needs the verb to agree; Spanish moves the words
+       * as well, and half a sentence cannot be translated.
+       */
+      const line = burning
+        ? (faster.length > 1
+            ? '{subject} are burning your rations faster{aside}'
+            : '{subject} is burning your rations faster{aside}')
+        : '{subject} is stretching your rations{aside}';
       hunger.setRate({
         text: `×${trimNumber(total)}`,
-        tip:
-          `${subject[0].toUpperCase()}${subject.slice(1)} ` +
-          `${burning && faster.length > 1 ? 'are' : 'is'} ` +
-          `${burning ? 'burning your rations faster' : 'stretching your rations'}${aside}`,
+        tip: t(line, { subject: capitalise(subject), aside }),
         // Only the sky scours the track. The horse is a rate, not a texture,
         // and the canteen is the one badge that is not a warning at all.
         state: burning ? (weatherLabel ? 'is-harsh' : null) : 'is-eased',
@@ -200,7 +222,7 @@ export function trailBand(opts = {}) {
   }
 
   syncLevel(player.level);
-  worldLabel.dataset.tip = `World ${player.world} of ${FINAL_WORLD}`;
+  worldLabel.dataset.tip = t('World {n} of {total}', { n: player.world, total: FINAL_WORLD });
 
   node.dispose = () => {
     unsubs.forEach((fn) => fn());
@@ -212,4 +234,9 @@ export function trailBand(opts = {}) {
 /** `1.15` rather than `1.1`, and `0.7` rather than `0.70`. */
 function trimNumber(n) {
   return String(Math.round(n * 100) / 100);
+}
+
+/** First letter up, for a sentence that starts with a phrase from a list. */
+function capitalise(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
