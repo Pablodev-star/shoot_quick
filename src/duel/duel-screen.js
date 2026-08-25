@@ -6,9 +6,16 @@
  * the fight (the feature the third version was best remembered for).
  *
  * Readability rules:
- *  - Both fighters are drawn the same way: name, lives, and a six-chamber
- *    cylinder. An empty gun is six dark holes — the old screen printed the
- *    words "no bullets" under each fighter on every round of every duel.
+ *  - NOTHING ON THIS SCREEN GROWS. Both fighters get the same plate, built by
+ *    the same function (src/duel/duel-hud.js), and it is the same size in
+ *    every fight: a name, one vital bar, one strip of cylinder and icons. The
+ *    cards this replaced were a column of rows that each pushed the next one
+ *    down — eleven lives wrapped, a boss's four tricks added a line, and the
+ *    fights where the interface filled the screen were exactly the fights
+ *    where the road most needed to be visible.
+ *  - Lives are a track, not a row of diamonds. Twenty of them is the same
+ *    width as three, and a life lost is a piece of the bar draining rather
+ *    than a fifteen-pixel shape quietly going dark.
  *  - Each button carries its cost as pips, not as a sentence. "+1 bullet · you
  *    are open" under Reload was the rulebook reprinted on every turn; the rules
  *    belong in How to Play, and the button belongs to the player who already
@@ -20,13 +27,17 @@
  *    are things the player should recognise on sight, and the row of names they
  *    used to be was the only part of the screen asking to be read twice. The
  *    names are still on the tooltip and on `aria-label`.
- *  - What is currently *happening* to a fighter is separate from what they can
- *    do: live effects sit in their own row and count down.
+ *  - What is currently *happening* to a fighter and what they *can do* share
+ *    one strip, ordered by urgency, capped, with the rest behind a `+n`. Live
+ *    counters come first: a poison that is running outranks a trick that may
+ *    never be cast.
+ *  - The world special is the one thing here that runs on a clock, so it gets
+ *    an instrument instead of a caption — see the threat dial in duel-hud.js.
  *
  * All rules live in duel-engine.js. This file never decides an outcome.
  */
 
-import { el, clearNode, wait, setText, setTip } from '../core/dom.js';
+import { el, clearNode, wait } from '../core/dom.js';
 import { t, tPlural } from '../core/i18n.js';
 import { attachButtonSounds, play, playMusic } from '../core/audio.js';
 import { setRenderer } from '../core/scene.js';
@@ -49,7 +60,7 @@ import { gunTier, enemyGunLook } from '../game/gun-tiers.js';
 import { playTotemRevival } from '../ui/totem.js';
 import { getWorld, FINAL_WORLD } from '../game/worlds.js';
 import { generateEnemy, generateBoss, nextBossPhase, enemySeedFor } from '../game/enemies.js';
-import { getAbility, getSpecial, specialDamage } from '../game/world-abilities.js';
+import { getAbility, specialDamage } from '../game/world-abilities.js';
 import { createDuel, MOVES } from './duel-engine.js';
 import { createLocalAgent, createAiAgent } from './duel-ai.js';
 import { createDuelScene, FALL_MS } from './duel-scene.js';
@@ -62,16 +73,13 @@ import { resolveDuel } from '../game/run.js';
 import { go } from '../core/router.js';
 import { track as trackAchievement } from '../game/achievements.js';
 import { openInventory } from '../ui/inventory-panel.js';
+import { icon, uiIcon, iconButton, statTile } from '../ui/widgets.js';
 import {
-  livesRow,
-  updateLivesRow,
-  cylinder,
-  updateCylinder,
-  icon,
-  uiIcon,
-  iconButton,
-  statTile,
-} from '../ui/widgets.js';
+  createFighterPlate,
+  createRoundMarker,
+  createConditionsRibbon,
+  createThreatBoard,
+} from './duel-hud.js';
 import { MAX_BULLETS } from './duel-engine.js';
 import { getSettings } from '../core/settings.js';
 import { toast } from '../ui/toast.js';
@@ -261,28 +269,38 @@ export const DuelScreen = {
     /** True while the player's one-shot landmark is still on the road. */
     let playerHazardUp = false;
 
-    // --- fighter cards -----------------------------------------------------
-    const playerLives = livesRow(player.lives, player.maxLives, {
-      large: true,
-      bonus: player.bonusLives,
+    // --- fighter plates ----------------------------------------------------
+    /**
+     * ONE PLATE EACH, THE SAME SHAPE, THE SAME HEIGHT
+     * -----------------------------------------------------------------------
+     * Both fighters are drawn by the same builder (src/duel/duel-hud.js) with
+     * the same three bands, and neither of them may grow: the bar is a track
+     * rather than a row of diamonds, and the icons are capped. A boss with
+     * twenty lives, a special and four tricks now occupies exactly as much of
+     * the screen as the first rider in world one does — which was the single
+     * worst thing about the old cards, because the fights where the screen
+     * filled up with interface were the fights where the road most needed to
+     * be visible.
+     */
+    const playerPlate = createFighterPlate({
+      side: 'player',
+      name: 'You',
+      maxLives: player.maxLives,
+      lives: player.lives,
+      bullets: 0,
+      chambers: MAX_BULLETS,
     });
-    const enemyLives = livesRow(enemy.lives, enemy.maxLives, { large: true });
-    const playerCylinder = cylinder(0, MAX_BULLETS);
-    const enemyCylinder = cylinder(enemy.bullets || 0, MAX_BULLETS);
     // The tooltip is the archetype's own one-line description of itself, so
     // hovering a name says what you are looking at rather than repeating it.
-    const enemyName = el('div.fighter-name', { text: enemy.name, 'data-tip': enemy.look || null });
-    const enemyAbilities = el('div.effect-row');
-    // What is currently working on each fighter, as opposed to what they can
-    // do. Rebuilt every round from the engine's own state.
-    const playerStatus = el('div.effect-row');
-    const enemyStatus = el('div.effect-row');
-    const playerCard = el('div.fighter-card', {}, [
-      el('div.fighter-name', { text: 'You' }),
-      playerLives,
-      playerCylinder,
-      playerStatus,
-    ]);
+    const enemyPlate = createFighterPlate({
+      side: 'enemy',
+      name: enemy.name,
+      tip: enemy.look || null,
+      maxLives: enemy.maxLives,
+      lives: enemy.lives,
+      bullets: enemy.bullets || 0,
+      chambers: MAX_BULLETS,
+    });
     /**
      * WHAT HE IS HOLDING, WRITTEN DOWN
      * -----------------------------------------------------------------------
@@ -291,86 +309,37 @@ export const DuelScreen = {
      * that is the reading the fight is meant to be won on. This is the same
      * fact in the one form a sprite cannot carry: the NUMBER. A player who has
      * not yet learned to tell a longbarrel from a sixgun at sixteen pixels can
-     * read "1.5 a shot" off the card and count how many of them their bar has
+     * read "1.5 a shot" off the plate and count how many of them their bar has
      * left, which is the whole decision every round of this game is.
      *
-     * It is on the enemy's card only. The player's own bullet is on the forge
-     * screen, on the Shoot button's tooltip and in the help panel already, and
-     * a fourth copy of it here would be the interface repeating itself.
+     * It sits BESIDE the name rather than on a line of its own, and it is on
+     * the enemy's plate only. The player's own bullet is on the forge screen,
+     * on the Shoot button's tooltip and in the help panel already, and a
+     * fourth copy of it here would be the interface repeating itself.
      */
-    const enemyGunChip = gunChip(enemy.gunDamage);
-    const enemyCard = el('div.fighter-card.is-enemy', {}, [
-      enemyName,
-      enemyLives,
-      enemyGunChip,
-      enemyCylinder,
-      enemyAbilities,
-      enemyStatus,
-    ]);
+    enemyPlate.setTag(gunChip(enemy.gunDamage));
 
     /**
-     * The enemy's abilities, as pictures.
+     * WHAT IS HAPPENING TO A FIGHTER, AND WHAT THEY CAN DO, IN ONE STRIP
+     * -----------------------------------------------------------------------
+     * There used to be two rows per fighter — one for the tricks they carry,
+     * one for the effects currently running on them — and both of them were
+     * allowed to wrap. That is two rows that grow, on a plate that must not,
+     * in the exact fights (a boss with four abilities, poisoned and marked and
+     * frozen at once) where the screen is busiest.
      *
-     * They used to be a row of words under the fighter — "Bullet Steal",
-     * "Mind Control" — which is the same information the icon carries, in the
-     * one form that has to be read rather than recognised, on a screen where
-     * the player is already reading a callout and three buttons. Every one of
-     * these has had an icon since src/art/sprites-items.js grew the last two.
-     * The name is still there for anyone who hovers or is using a reader.
-     */
-    function renderAbilities() {
-      clearNode(enemyAbilities);
-      (enemy.abilities || []).forEach((a) => enemyAbilities.append(effectBadge(a)));
-      if (isImmuneToEffects() && (enemy.abilities || []).length) {
-        enemyAbilities.append(
-          effectBadge('immune', { label: 'Blocked by diadem', tone: 'is-blocked' }),
-        );
-      }
-      /**
-       * The special sits on the card from the first round, like everything
-       * else: a volcano is not a twist, it is a thing this one can do, and
-       * the player is owed the chance to fight faster because of it. Once it
-       * has been spent the badge stays and goes red — it is not a warning any
-       * more, it is the weather.
-       */
-      const spec = duel.getSpecialSpec();
-      if (spec) {
-        const raised = !!duel.getHazard();
-        const cost = specialDamage(spec);
-        enemyAbilities.append(
-          effectBadge(spec.id, {
-            label: spec.label,
-            iconName: spec.icon,
-            tone: raised ? 'is-special is-raised' : 'is-special',
-            // The tip is the deal in one line: what it costs and how often.
-            // `getAbility` knows nothing about specials, so it is spelled here.
-          }),
-        );
-        const badge = enemyAbilities.lastElementChild;
-        // "Three lives an eruption" is the wrong promise for a charge special:
-        // the whole threat is that they arrive together, and a player reading
-        // the card is deciding whether they can afford to trade rounds with it.
-        const rate = spec.pattern === 'charge'
-          ? tPlural(cost, '1 life in one shot', '{count} lives in one shot')
-          : tPlural(cost, '1 life an eruption', '{count} lives an eruption');
-        const tip = t('{label} — {what}. {rate}', {
-          label: t(spec.label),
-          what: t(spec.tip),
-          rate,
-        });
-        badge.dataset.tip = tip;
-        badge.setAttribute('aria-label', tip);
-      }
-    }
-
-    /**
-     * Live status on a fighter: what is currently working on them, as opposed
-     * to what they can do. Every one of the eight counters the engine keeps has
-     * a badge here with the number still to run, because a rule the player
-     * cannot see the clock for is a rule they can only learn by losing to it —
-     * "frozen, 1 left" is the difference between a wasted turn and a planned
-     * one. The colour on the fighter out on the road says the same thing at a
-     * glance; this says it exactly.
+     * One strip now, and it is ORDERED BY URGENCY, because the strip is capped
+     * and the cap has to cut the right end off:
+     *
+     *   1. what is happening to them right now, counting down
+     *   2. what they are wearing that will change a hit — vest, totem, diadem
+     *   3. what they carry and have not spent yet
+     *
+     * A live poison outranks an ability that may never be cast, so if anything
+     * falls behind the `+n` it is the thing that has not happened. The special
+     * is the one item that LEAVES the strip: once it is standing on the
+     * horizon it has its own clock in the middle of the screen, and a badge
+     * saying the same thing would be the interface repeating itself.
      */
     const STATUS_BADGES = [
       ['frozen', 'iceFall', 'Frozen — they do nothing at all', 'is-bad'],
@@ -383,33 +352,115 @@ export const DuelScreen = {
       ['reflect', 'starRot', 'Mirrored — the next shot goes back', 'is-good'],
     ];
 
-    function renderStatus(row, side) {
-      clearNode(row);
+    /**
+     * The status an ability leaves behind, so a cast can light the token it
+     * just created rather than a token with a similar name. Every effect that
+     * lands as a counter is in here; the ones that are not — a blast, a
+     * pierce, a steal — resolve in the round and leave nothing to flash.
+     */
+    const EFFECT_STATUS = {
+      freeze: 'frozen',
+      venom: 'venom',
+      jam: 'jam',
+      panic: 'panic',
+      blind: 'blind',
+      mark: 'mark',
+      doubleTap: 'doubleTap',
+      reflect: 'reflect',
+    };
+
+    /**
+     * Live counters on one fighter. Every one of the eight the engine keeps is
+     * here with the number still to run, because a rule the player cannot see
+     * the clock for is a rule they can only learn by losing to it — "frozen, 1
+     * left" is the difference between a wasted turn and a planned one. The
+     * colour on the fighter out on the road says the same thing at a glance;
+     * this says it exactly.
+     *
+     * Keys are prefixed by what KIND of thing they are, so a status called
+     * `venom` and an ability called `venom` can never collide in a strip that
+     * now holds both.
+     */
+    function statusTokens(side) {
+      const list = [];
       const st = side.status || {};
       for (const [key, iconName, label, tone] of STATUS_BADGES) {
         const left = st[key] || 0;
         if (left <= 0) continue;
-        row.append(
-          effectBadge(key, { label: t('{label} — {left} left', { label: t(label), left }), iconName, tone, count: left }),
-        );
+        list.push({
+          key: `s-${key}`,
+          iconName,
+          tone,
+          count: left,
+          tip: t('{label} — {left} left', { label: t(label), left }),
+        });
       }
       if (side.hasVest) {
-        row.append(effectBadge('vest', { label: 'Vest — stops one hit a duel', tone: 'is-good' }));
+        list.push({ key: 'c-vest', iconName: 'vest', tone: 'is-good', tip: 'Vest — stops one hit a duel' });
       }
-      // It stays on the card until it is spent, and it disappears the moment
-      // it is: the badge going is how the player learns the totem was used on
+      // It stays on the plate until it is spent, and it disappears the moment
+      // it is: the token going is how the player learns the totem was used on
       // the round that black screen came up.
       if (side.hasTotem) {
-        row.append(
-          effectBadge('duskTotem', {
-            label: 'Dusk Totem — when the last life goes, it breaks instead of you',
-            tone: 'is-good',
-          }),
-        );
+        list.push({
+          key: 'c-totem',
+          iconName: 'duskTotem',
+          tone: 'is-good',
+          tip: 'Dusk Totem — when the last life goes, it breaks instead of you',
+        });
       }
       if (side.immune) {
-        row.append(effectBadge('immune', { label: 'Diadem — effects cannot touch you', tone: 'is-good' }));
+        list.push({ key: 'c-immune', iconName: 'diadem', tone: 'is-good', tip: 'Diadem — effects cannot touch you' });
       }
+      return list;
+    }
+
+    /**
+     * The enemy's, which is the same list with everything they are CARRYING on
+     * the end of it.
+     *
+     * The abilities are pictures rather than the row of words they used to be
+     * — "Bullet Steal", "Mind Control" — which is the same information in the
+     * one form that has to be read rather than recognised, on a screen where
+     * the player is already reading a callout and three buttons. The name is
+     * still there for anyone who hovers or is using a reader.
+     */
+    function enemyTokens(side) {
+      const list = statusTokens(side);
+      const abilities = enemy.abilities || [];
+      for (const id of abilities) list.push({ key: id, tone: 'is-carried' });
+      if (isImmuneToEffects() && abilities.length) {
+        list.push({
+          key: 'c-blocked',
+          iconName: 'diadem',
+          tone: 'is-blocked',
+          tip: 'Blocked by diadem',
+        });
+      }
+      /**
+       * The special sits on the plate from the first round, like everything
+       * else: a volcano is not a twist, it is a thing this one can do, and the
+       * player is owed the chance to fight faster because of it. The moment it
+       * is raised the token hands over to the threat dial, which is a clock
+       * and can say the half of it a badge never could — when.
+       */
+      const spec = duel.getSpecialSpec();
+      if (spec && !duel.getHazard()) {
+        const cost = specialDamage(spec);
+        // "Three lives an eruption" is the wrong promise for a charge special:
+        // the whole threat is that they arrive together, and a player reading
+        // the plate is deciding whether they can afford to trade rounds with it.
+        const rate = spec.pattern === 'charge'
+          ? tPlural(cost, '1 life in one shot', '{count} lives in one shot')
+          : tPlural(cost, '1 life an eruption', '{count} lives an eruption');
+        list.push({
+          key: `x-${spec.id}`,
+          iconName: spec.icon,
+          tone: 'is-special',
+          tip: t('{label} — {what}. {rate}', { label: t(spec.label), what: t(spec.tip), rate }),
+        });
+      }
+      return list;
     }
 
     /**
@@ -465,36 +516,44 @@ export const DuelScreen = {
     }
 
     // --- centre ------------------------------------------------------------
-    const roundPill = el('div.round-pill', { text: 'Round 1' });
+    /**
+     * THE COLUMN THAT USED TO BE A TOWER OF PILLS
+     * -----------------------------------------------------------------------
+     * Round, weather, night, boss and the hazard clock were five full-size
+     * pills stacked down the middle of the road, and on a Galaxy boss fight at
+     * night in a starfall they reached most of the way to the duellists' feet.
+     * Every one of them looked the same as the others, so the one that was
+     * actually ticking — the clock — was the hardest of the five to find.
+     *
+     * Three things now, in the order they matter: the round, the conditions
+     * written small because the weather is not the fight, and the threat dial,
+     * which is the only instrument here and finally looks like one.
+     */
+    const roundMarker = createRoundMarker();
     const callout = el('div.duel-callout.is-waiting', { role: 'status', 'aria-live': 'polite' }, [
       el('span', { text: 'Choose your move' }),
     ]);
 
-    const atmosChips = [
+    const conditions = createConditionsRibbon([
+      isBoss && { label: 'Boss', tone: 'boss', tip: enemy.look || 'A boss fight' },
+      modifiers.night && { label: 'Night', tone: 'cold', tip: 'They aim worse in the dark' },
       modifiers.weatherLabel && modifiers.weatherId !== 'clear'
-        ? el('span.chip.chip--danger', {
-            text: modifiers.weatherLabel,
-            'data-tip': modifiers.misfireChance
+        ? {
+            label: modifiers.weatherLabel,
+            tone: 'weather',
+            tip: modifiers.misfireChance
               ? 'Wet powder — shots sometimes misfire'
               : 'Poor visibility — they read you less well',
-          })
+          }
         : null,
-      modifiers.night
-        ? el('span.chip.chip--danger', { text: 'Night', 'data-tip': 'They aim worse in the dark' })
-        : null,
-      isBoss ? el('span.chip.chip--legendary', { text: 'Boss' }) : null,
-    ].filter(Boolean);
+    ]);
 
     /**
-     * The hazard clock, once one is up.
-     *
-     * A special runs on real time, and a rule the player cannot see the clock
-     * for is a rule they can only learn by dying to it. So the countdown is on
-     * screen: twelve seconds to the next eruption is information you are meant
-     * to be spending — finish the fight, or shield and wait it out.
+     * The hazard clock, once one is up. See the note over `createThreatBoard`
+     * in src/duel/duel-hud.js for why a special gets an instrument of its own
+     * rather than a fourth pill that happens to contain a number.
      */
-    const hazardChip = el('span.chip.chip--danger.chip--hazard', { hidden: true });
-    let hazardChipKey = '';
+    const threats = createThreatBoard();
 
     // --- controls ----------------------------------------------------------
     const buttons = {};
@@ -596,7 +655,13 @@ export const DuelScreen = {
           'aria-label': `${t(slot.spec.label)}. ${t(slot.spec.desc)}`,
         }, [
           icon(slot.spec.icon, 1.2),
-          el('span.ability-name', {}, [slot.spec.label, el('span.kbd', { text: key })]),
+          // The name is its own node so a narrow screen can drop it and keep
+          // the icon, the key and the charge — which is the whole plate, minus
+          // the one part of it that is already on the tooltip.
+          el('span.ability-name', {}, [
+            el('span.ability-word', { text: slot.spec.label }),
+            el('span.kbd', { text: key }),
+          ]),
           pips,
         ]);
         plate.pips = pips;
@@ -633,9 +698,9 @@ export const DuelScreen = {
 
     const screen = el('div.screen.duel-screen', {}, [
       el('div.duel-top', {}, [
-        playerCard,
-        el('div.duel-center', {}, [roundPill, ...atmosChips, hazardChip]),
-        enemyCard,
+        playerPlate.node,
+        el('div.duel-center', {}, [roundMarker.node, conditions, threats.node]),
+        enemyPlate.node,
       ]),
       // The bag and the guide sit on the callout line rather than on a row of
       // their own: a duel on a short screen was pushing them off the bottom.
@@ -648,7 +713,6 @@ export const DuelScreen = {
 
     root.append(screen);
     attachButtonSounds(screen);
-    renderAbilities();
     buildAbilityBar();
     syncBars();
 
@@ -656,12 +720,12 @@ export const DuelScreen = {
      * Tell the scene where the interface stops.
      *
      * Only an oversized fighter cares, and only because his head would
-     * otherwise be behind his own life bar. It is measured rather than
-     * guessed: the card is as tall as the enemy's name and abilities make it,
-     * and the Stranger's second phase has a two-line name and four icons.
+     * otherwise be behind his own life bar. The plate no longer changes height
+     * with what is on it — that is the whole point of it — but it still
+     * changes with the window, so it is measured rather than guessed.
      */
     function syncHud() {
-      scene.setHudBox(enemyCard.getBoundingClientRect());
+      scene.setHudBox(enemyPlate.node.getBoundingClientRect());
     }
     requestAnimationFrame(syncHud);
     window.addEventListener('resize', syncHud);
@@ -669,16 +733,14 @@ export const DuelScreen = {
     // --- state sync --------------------------------------------------------
     function syncBars() {
       const sides = duel.getSides();
-      updateLivesRow(playerLives, sides.player.lives, sides.player.maxLives, sides.player.bonus);
-      updateLivesRow(enemyLives, sides.enemy.lives, sides.enemy.maxLives, sides.enemy.bonus);
-      updateCylinder(playerCylinder, sides.player.bullets);
-      updateCylinder(enemyCylinder, sides.enemy.bullets);
-      renderStatus(playerStatus, sides.player);
-      renderStatus(enemyStatus, sides.enemy);
+      playerPlate.setLives(sides.player.lives, sides.player.maxLives, sides.player.bonus);
+      enemyPlate.setLives(sides.enemy.lives, sides.enemy.maxLives, sides.enemy.bonus);
+      playerPlate.setBullets(sides.player.bullets);
+      enemyPlate.setBullets(sides.enemy.bullets);
+      playerPlate.setTokens(statusTokens(sides.player));
+      enemyPlate.setTokens(enemyTokens(sides.enemy));
       syncStatusTints();
-      setText(roundPill, 'Round {n}', {
-        n: Math.max(1, duel.getRound() + (localAgent.isWaiting() ? 1 : 0)),
-      });
+      roundMarker.set(Math.max(1, duel.getRound() + (localAgent.isWaiting() ? 1 : 0)));
 
       // Shoot swaps its cost strip for "Empty" when the cylinder is out, so a
       // disabled button still says why it is disabled.
@@ -753,10 +815,12 @@ export const DuelScreen = {
         // Nothing has hit anybody yet when a blast is cast — the stick is still
         // in the air. Its noise belongs to the detonation, a round later.
         if (spec.effect !== 'blast') play(spec.effect === 'pierce' ? 'hit' : 'shield');
-        flashEffect(enemyStatus, spec.id);
-        enemyCard.classList.remove('is-hit');
-        void enemyCard.offsetWidth;
-        enemyCard.classList.add('is-hit');
+        // The token the cast just created is the one that lights: a freeze
+        // flashes the ice on their plate, not a badge that happens to share
+        // the ability's name. `syncBars` below has already put it there.
+        const landed = EFFECT_STATUS[spec.effect];
+        enemyPlate.hit();
+        if (landed) requestAnimationFrame(() => enemyPlate.flash(`s-${landed}`));
       }
       syncBars();
       syncAbilityBar();
@@ -778,7 +842,7 @@ export const DuelScreen = {
       scene.fx.rays = 0.7;
       playerHazardUp = true;
       play(spec.sfx || 'toll');
-      setCallout(t('You call down the {trick}', { trick: t(spec.label).toLowerCase() }), 'is-good');
+      setCallout(t('You call down {label}', { label: t(spec.label) }), 'is-good');
     }
 
     /**
@@ -901,7 +965,7 @@ export const DuelScreen = {
        * animated a self-buff over the wrong fighter.
        */
       if (event.type === 'ability' && event.side === 'enemy') {
-        flashEffect(enemyAbilities, event.ability);
+        enemyPlate.flash(event.ability);
         const ability = getAbility(event.ability);
         // It plays over whoever it LANDED on, which is not always the rival:
         // a mirror and a loaded whisper settle on the fighter that cast them.
@@ -953,7 +1017,7 @@ export const DuelScreen = {
       if (event.type === 'hazard-erupt') handleHazardErupt(event);
       if (event.type === 'hazard-strike') handleHazardStrike(event);
       if (event.type === 'ability-blocked') {
-        flashEffect(enemyStatus, 'immune');
+        playerPlate.flash('c-immune');
         toast('The diadem blocked it', 'good');
       }
       if (event.type === 'phase') {
@@ -992,9 +1056,18 @@ export const DuelScreen = {
       scene.fx.rays = 0.85;
       scene.fx.slam = 150;
       play(spec.sfx || 'toll');
-      setCallout(t('{name} calls up the {trick}', { name: t(enemy.name), trick: t(spec.label).toLowerCase() }), 'is-bad');
-      renderAbilities();
-      hazardChip.hidden = false;
+      /**
+       * The label is a NAME — "The Rift", "Volcano", "The Gallows" — and half
+       * of them carry their own article. Any sentence that supplied a second
+       * one printed "the the rift", and no sentence can supply the right one
+       * in Spanish anyway, where the article has a gender the English table
+       * knows nothing about. So the name goes in whole and the sentence goes
+       * around it.
+       */
+      setCallout(t('{name} calls up {label}', { name: t(enemy.name), label: t(spec.label) }), 'is-bad');
+      // The token on their plate hands over to the dial in the middle of the
+      // screen, which is the thing that can say when.
+      syncBars();
 
       scene.lookAt({ side: 'enemy', x: 8, y: 5, fill: 12, ms: 340 });
       await wait(820);
@@ -1040,7 +1113,7 @@ export const DuelScreen = {
         if (entry.owner === 'enemy') {
           scene.fx.banner = entry.spec.chargeBanner || 'IT IS GATHERING';
           scene.fx.bannerTimer = 1500;
-          setCallout(t('The {trick} is winding up', { trick: t(entry.spec.label).toLowerCase() }), 'is-bad');
+          setCallout(t('{label} — winding up', { label: t(entry.spec.label) }), 'is-bad');
         }
         play('rumble');
         return;
@@ -1064,20 +1137,30 @@ export const DuelScreen = {
       const side = event.side || 'player';
       const spec = hazardOf(event)?.spec;
       scene.hazardStrike(side, owner, { mega: event.mega });
-      const card = side === 'player' ? playerCard : enemyCard;
-      card.classList.remove('is-hit');
-      void card.offsetWidth;
-      card.classList.add('is-hit');
+      (side === 'player' ? playerPlate : enemyPlate).hit();
+      threats.strike(owner);
       if (event.mega) {
         scene.fx.banner = spec?.megaBanner || 'DIRECT HIT!';
         scene.fx.bannerTimer = 1500;
         play('thunder');
         play('hit');
-        const took = `${event.damage} ${event.damage === 1 ? 'life' : 'lives'}`;
+        /**
+         * A SPECIAL'S NAME ALREADY HAS ITS ARTICLE ON IT
+         * -------------------------------------------------------------------
+         * `spec.label` is "The Rift", not "Rift", so the line that used to be
+         * built as `` `The ${label.toLowerCase()} fires` `` printed "The the
+         * rift fires" — and, being built by concatenation, it printed it in
+         * English at a player reading the rest of the fight in Spanish. Both
+         * halves of that are fixed the same way: one whole sentence per side,
+         * with the label dropped in, so `t` has something to translate and the
+         * article is written exactly once.
+         */
+        const took = tPlural(event.damage, '1 life at once', '{count} lives at once');
+        const label = t(spec?.label || 'The Rift');
         setCallout(
           side === 'player'
-            ? `The ${spec?.label.toLowerCase() || 'rift'} fires — ${took} at once`
-            : `Your ${spec?.label.toLowerCase() || 'rift'} fires — ${took} at once`,
+            ? t('{label} fires — {took}', { label, took })
+            : t('{label} fires at them — {took}', { label, took }),
           side === 'player' ? 'is-bad' : 'is-good',
         );
       } else {
@@ -1166,10 +1249,9 @@ export const DuelScreen = {
       // start from here too. `runTotem` guards itself; the loop calling it a
       // moment later is a no-op.
       if (totemPending) runTotem();
-      for (const entry of duel.getHazards()) {
-        scene.setHazardState(entry.owner, entry.clock.getState());
-        if (entry.owner === 'enemy') updateHazardChip(entry.clock);
-      }
+      const hazards = duel.getHazards();
+      for (const entry of hazards) scene.setHazardState(entry.owner, entry.clock.getState());
+      syncThreats(hazards);
       // The player's is one eruption and gone; the engine drops it from its
       // list the moment it goes quiet, and the scene has to let go too or the
       // landmark stands there for the rest of the fight doing nothing.
@@ -1193,61 +1275,45 @@ export const DuelScreen = {
     }
 
     /**
-     * The countdown over the fight.
+     * THE COUNTDOWN OVER THE FIGHT
+     * -----------------------------------------------------------------------
+     * A special runs on real time while the player is reading three buttons,
+     * and a rule the player cannot see the clock for is a rule they can only
+     * learn by dying to it. So the clock is on screen, and it is a clock: a
+     * ring that fills as the quiet runs out, the special's own icon in the
+     * middle, the seconds under it. Twelve seconds to the next eruption is
+     * information the player is meant to be SPENDING — finish the fight, or
+     * shield and wait it out — and a ring says how much of it there is left
+     * without being read.
      *
-     * Dormant it reads seconds, because seconds is the thing worth hurrying
-     * for. A charge special reads a PERCENTAGE instead once it starts winding
-     * up: what the player needs from a rift is not "it is erupting" — it is
-     * erupting for five seconds and nothing has happened yet — but how much of
-     * that five seconds is left before three lives arrive in one piece.
+     * The dial takes its second reading from the same place the chip did: a
+     * charge special stops counting seconds once it starts winding up and
+     * starts filling with the shot itself, because what the player needs from
+     * a rift is not "it is erupting" but how much of the wind-up is left
+     * before four lives arrive in one piece.
+     *
+     * This runs on the canvas frame loop, so everything under it is written to
+     * do nothing when nothing has changed — see `update` in
+     * src/duel/duel-hud.js.
      */
-    function updateHazardChip(hz) {
-      const phase = hz.getPhase();
-      const label = hz.spec.label;
-      const charge = hz.getState().charge ?? -1;
-      const pct = charge >= 0 ? Math.min(100, Math.round(charge * 100)) : -1;
-      /**
-       * A charge special that has let go is in neither state the other five
-       * have: the window is still open but the shot has been taken. It reads
-       * FIRED for that half second, because "erupting" would be describing
-       * something about to happen that already has.
-       */
-      const spent = pct < 0 && phase === 'active' && hz.getPattern() === 'charge';
-      const key =
-        phase === 'dormant'
-          ? `d${hz.secondsToNext()}`
-          : pct >= 0
-            ? `c${Math.round(pct / 4)}`
-            : spent
-              ? 'fired'
-              : phase;
-      if (key === hazardChipKey) return;
-      hazardChipKey = key;
-      hazardChip.hidden = false;
-      /**
-       * One whole sentence per state rather than a label with a suffix stuck on
-       * it. The suffixes are shouted words — FIRED, NOW, ERUPTING — and a word
-       * on its own has no translation until you know what it is attached to.
-       */
-      const shown = t(label);
-      hazardChip.textContent =
-        phase === 'dormant'
-          ? t('{label} · {seconds}s', { label: shown, seconds: hz.secondsToNext() })
-          : pct >= 0
-            ? t('{label} · CHARGING {pct}%', { label: shown, pct })
-            : spent
-              ? t('{label} · FIRED', { label: shown })
-              : phase === 'warning'
-                ? t('{label} · NOW', { label: shown })
-                : t('{label} · ERUPTING', { label: shown });
-      hazardChip.classList.toggle('is-erupting', phase !== 'dormant');
-      const cost = specialDamage(hz.spec);
-      hazardChip.dataset.tip = t('{what}. {rate}', {
-        what: t(hz.spec.tip),
-        rate: hz.getPattern() === 'charge'
-          ? tPlural(cost, '1 life in one shot', '{count} lives in one shot')
-          : tPlural(cost, '1 life an eruption', '{count} lives an eruption'),
-      });
+    function syncThreats(hazards) {
+      threats.sync(
+        hazards.map((entry) => {
+          const cost = specialDamage(entry.spec);
+          return {
+            owner: entry.owner,
+            spec: entry.spec,
+            state: entry.clock.getState(),
+            seconds: entry.clock.secondsToNext(),
+            // What one window of it costs, for the tooltip. A charge special
+            // is priced as one shot rather than as an eruption: the whole
+            // threat is that the blows arrive together.
+            rate: entry.clock.getPattern() === 'charge'
+              ? tPlural(cost, '1 life in one shot', '{count} lives in one shot')
+              : tPlural(cost, '1 life an eruption', '{count} lives an eruption'),
+          };
+        }),
+      );
     }
 
     /**
@@ -1317,18 +1383,14 @@ export const DuelScreen = {
         scene.impact('player');
         scene.setPose('player', 'hit');
         scene.fx.shake = 340;
-        playerCard.classList.remove('is-hit');
-        void playerCard.offsetWidth;
-        playerCard.classList.add('is-hit');
+        playerPlate.hit();
         play('hit');
       }
       if (res.hits.enemy) {
         scene.impact('enemy');
         scene.setPose('enemy', 'hit');
         scene.fx.shake = 260;
-        enemyCard.classList.remove('is-hit');
-        void enemyCard.offsetWidth;
-        enemyCard.classList.add('is-hit');
+        enemyPlate.hit();
         play('hit');
       }
 
@@ -1442,10 +1504,7 @@ export const DuelScreen = {
               // gets serious and it has to look like it before the player has
               // taken a single round of the new phase.
               scene.setAura(next.aura || 0);
-              setText(enemyName, next.name);
-              if (next.look) setTip(enemyName, next.look);
-              else delete enemyName.dataset.tip;
-              renderAbilities();
+              enemyPlate.setName(next.name, next.look);
               syncBars();
               // The card just changed height (a longer name, more icons), and
               // the new phase is bigger — both inputs to how tall he is drawn.
@@ -1736,29 +1795,14 @@ export const DuelScreen = {
       unsubItemUsed();
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('resize', syncHud);
+      // A run is dozens of fights, and each plate watches its own token strip
+      // for a resize. An observer with a live observation keeps the plate it
+      // belongs to reachable long after the duel is over.
+      playerPlate.dispose();
+      enemyPlate.dispose();
     };
   },
 };
-
-/**
- * The two effects that are not abilities: the things the PLAYER is carrying.
- * Everything else — every themed trick, every world special — names its own
- * icon in src/game/world-abilities.js, so adding one never touches this file.
- */
-const EFFECT_ICONS = {
-  vest: 'vest',
-  immune: 'diadem',
-  duskTotem: 'duskTotem',
-};
-
-/** Kick the animation on one badge in a row, if that effect is showing. */
-function flashEffect(row, effect) {
-  const badge = row?.querySelector(`[data-effect="${effect}"]`);
-  if (!badge) return;
-  badge.classList.remove('is-firing');
-  void badge.offsetWidth; // restart the animation
-  badge.classList.add('is-firing');
-}
 
 /**
  * The rival's gun, as a chip: the revolver he is actually carrying and what one
@@ -1785,27 +1829,15 @@ function gunChip(damage) {
       // a sixgun instead of every gun being squeezed into one box.
       style: { height: '16px', width: `${Math.round((art.width / art.height) * 16)}px` },
     }),
-    el('span', { text: t('{cost} a shot', { cost }) }),
-  ]);
-}
-
-/**
- * One effect, as a framed pixel icon. The word it replaces is still carried by
- * `data-tip` and `aria-label`, so hovering explains it and a screen reader
- * reads it out — the icon replaces the *printed* label, not the information.
- */
-function effectBadge(effect, { label, tone = '', count, iconName } = {}) {
-  const ability = getAbility(effect);
-  const name = label || ability.label || effect;
-  const tip = ability.tip ? `${name} — ${ability.tip}` : name;
-  return el('span.effect-badge', {
-    class: tone,
-    dataset: { effect },
-    'data-tip': tip,
-    role: 'img',
-    'aria-label': tip,
-  }, [
-    icon(iconName || EFFECT_ICONS[effect] || ability.icon || 'skull', 1.15),
-    count != null ? el('span.effect-count', { text: String(count) }) : null,
+    /**
+     * The number and the unit are separate nodes because a phone is not wide
+     * enough for both. "0.5 a shot" is "0.5 por disparo" in Spanish, which is
+     * half the width of a 390-pixel screen — so under 620 the unit steps out
+     * (see `.chip--gun` in styles/game.css) and the number, which is the part
+     * being counted against a life bar, stays. The whole sentence is on the
+     * tooltip and on aria-label either way.
+     */
+    el('b', { text: String(cost) }),
+    el('span.gun-chip-unit', { text: 'a shot' }),
   ]);
 }

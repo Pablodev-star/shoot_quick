@@ -1276,14 +1276,25 @@
 /* ==========================================================================
    Duel
 
-   Layout in three bands so nothing ever overlaps the duellists:
-     top     the two fighters, symmetric
-     middle  empty — this is where the fight is drawn
-     bottom  the callout, then the three moves
+   Three bands, and the middle one is the fight:
+
+     top     the two plates and, between them, the round and the clock
+     middle  empty — this is where the duellists are drawn
+     bottom  the callout, the abilities, the three moves
+
+   THE WHOLE INTERFACE IS BOUNDED
+   -------------------------------------------------------------------------
+   Every rule in this section exists to stop something growing. A plate is the
+   same height with three lives or twenty; the token strip is one line with a
+   `+n` rather than a wrapping grid; the middle column is one narrow lane
+   rather than a stack of pills that reached the duellists' boots on a boss
+   fight at night in a starfall. A duel screen that gets busier the more
+   interesting the duel is, is a duel screen that hides the duel.
    ========================================================================== */
 
 .duel-screen {
-  --screen-max: 1000px;
+  --screen-max: 1060px;
+  --plate-w: 320px;
   justify-content: space-between;
   gap: var(--sp-3);
   pointer-events: none;
@@ -1293,8 +1304,8 @@
 
 /* A boss entrance owns the frame.
 
-   Everything the duel screen normally shows steps out of the way — cards,
-   round pill, callout, the three move plates — because a cut-scene playing
+   Everything the duel screen normally shows steps out of the way — plates,
+   round marker, callout, the three move plates — because a cut-scene playing
    behind a life bar is a fight with a picture on it. They fade rather than
    vanish, so the interface is visibly *returning* when the bars pull off, and
    they keep their space in the layout so nothing jumps at the handover. */
@@ -1312,34 +1323,126 @@
 
 .duel-top {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(132px, auto) minmax(0, 1fr);
+  /* Start, not stretch. The plates are a fixed height by construction — see
+     `.plate-head` — so they are already the same size as each other, and
+     letting the centre lane stretch them was how a tall threat dial put forty
+     pixels of empty glass under both fighters' names. */
   align-items: start;
   gap: var(--sp-3);
+  width: 100%;
 }
 
-.fighter-card {
+/* --- The fighter plate ---------------------------------------------------
+   Name and gun, one vital bar, one strip of cylinder and tokens. Nothing
+   else, ever: anything new that a fighter can be carrying becomes a token,
+   because a token costs 24 pixels of a row that already exists and a new row
+   costs the road. */
+
+.plate {
   justify-self: start;
   width: 100%;
-  max-width: 260px;
+  max-width: var(--plate-w);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
-  padding: var(--sp-3);
-  background: var(--surface-glass);
+  gap: 7px;
+  padding: 9px 11px;
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 226, 170, 0.05), transparent 42%),
+    var(--surface-glass);
   border: 2px solid var(--edge);
-  border-top: 4px solid var(--blue-dark);
   border-radius: var(--radius-lg);
   box-shadow: inset 0 1px 0 var(--edge-highlight), var(--lift-1);
   backdrop-filter: blur(5px);
-  transition: border-color var(--dur-fast) linear, box-shadow var(--dur-fast) linear;
+  transition: box-shadow var(--dur-fast) linear, border-color var(--dur-fast) linear;
 }
 
-.fighter-card.is-enemy {
-  justify-self: end;
-  align-items: flex-end;
-  text-align: right;
-  border-top-color: var(--red-dark);
+/* The side stripe: a bar down the edge nearest the fighter it belongs to,
+   which is how the plate says which end of the road it is reporting on
+   without a word or an arrow. */
+.plate::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--blue-light), var(--blue-dark));
+  box-shadow: 0 0 10px rgba(127, 184, 255, 0.45);
 }
+
+.plate--enemy {
+  justify-self: end;
+  text-align: right;
+}
+
+.plate--enemy::before {
+  inset: 0 0 0 auto;
+  background: linear-gradient(180deg, var(--red-light), var(--red-deep));
+  box-shadow: 0 0 10px rgba(240, 87, 79, 0.45);
+}
+
+/* Something landed. The plate takes the blow rather than merely reporting it:
+   a shove, a red rim and a wash of red across the glass, all of it over in
+   under half a second so the next round is clean. */
+.plate.is-hit { animation: plate-hit 460ms var(--ease-out); }
+
+@keyframes plate-hit {
+  0% {
+    transform: translateX(0);
+    box-shadow: 0 0 0 3px rgba(240, 87, 79, 0.95), 0 0 26px rgba(240, 87, 79, 0.5), var(--lift-1);
+    background-color: rgba(198, 47, 42, 0.35);
+  }
+  22% { transform: translateX(-5px); }
+  46% { transform: translateX(4px); }
+  70% { transform: translateX(-2px); }
+  100% {
+    transform: translateX(0);
+    box-shadow: inset 0 1px 0 var(--edge-highlight), var(--lift-1);
+    background-color: transparent;
+  }
+}
+
+/* The head is a FIXED height, and that is what makes a plate a fixed height.
+   One name or two, a gun chip or none, the band is 32 pixels — so the two
+   plates are the same size as each other in every fight, including the one
+   where the boss has a two-line name and the player is called "You". */
+.plate-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 32px;
+  min-width: 0;
+}
+
+.plate--enemy .plate-head { flex-direction: row-reverse; }
+
+.plate-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  line-height: 1.15;
+  /* Two lines is the ceiling. The Stranger's second phase has a long name and
+     the plate is not allowed to grow for it — the full name is on the
+     tooltip and on aria-label. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.plate--enemy .plate-name {
+  color: var(--red-light);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
+}
+
+/* The gun chip may shrink; it may not push the name out of the plate. The
+   plate no longer clips its own contents — the token popover hangs below it —
+   so anything in here that could grow has to be told not to. */
+.plate-tag { flex: 0 1 auto; min-width: 0; overflow: hidden; line-height: 0; }
+.plate-tag:empty { display: none; }
 
 /* What the man across the road is carrying, and what it costs. The picture is
    the baked revolver itself (see `gunChip` in src/duel/duel-screen.js), so the
@@ -1348,91 +1451,350 @@
 .chip--gun {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
+  gap: 5px;
+  padding: 2px 7px;
   border-color: var(--red-dark);
   color: var(--bone);
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.chip--gun b { color: var(--gold-light); font-style: normal; }
+
+/* Under 620 the unit steps out and the number stays: "0.5 por disparo" is
+   half a phone screen wide, and the figure is the half being counted against
+   a life bar. The whole sentence stays on the tooltip. */
+@media (max-width: 620px) {
+  .gun-chip-unit { display: none; }
 }
 
 .gun-chip-art {
-  /* The gun points at the player on the enemy's card, which is the way it is
+  /* The gun points at the player on the enemy's plate, which is the way it is
      pointed on the road. */
   transform: scaleX(-1);
   image-rendering: pixelated;
 }
 
-.fighter-card.is-hit { animation: card-hit var(--dur-slow) var(--ease-out); }
+/* --- The vital bar -------------------------------------------------------
+   A track, not a row of diamonds.
 
-@keyframes card-hit {
-  0% { box-shadow: 0 0 0 3px rgba(240, 87, 79, 0.9), var(--lift-1); }
-  100% { box-shadow: inset 0 1px 0 var(--edge-highlight), var(--lift-1); }
-}
+   Diamonds were right when a fighter had six lives and they are wrong at
+   twenty: eleven of them wrapped onto a second line, which is what made the
+   plate grow, and at that size one diamond is a detail rather than a unit.
+   A track is the same width whatever the bar holds, and it can do the one
+   thing the row could not — drain.
+   ========================================================================== */
 
-.fighter-name {
-  font-family: var(--font-display);
-  font-size: var(--text-md);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  line-height: 1.2;
-}
-
-.fighter-card.is-enemy .fighter-name {
-  color: var(--red-light);
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
-}
-
-/* --- Effects -------------------------------------------------------------
-   Poison, dynamite, bullet steal, mind control, the vest, the diadem. Every
-   one of them is a 16px icon on a plate, never a printed name: the duel screen
-   already asks the player to read a callout and three buttons, and an ability
-   is something they should recognise, not parse. The name lives in the tooltip
-   and in aria-label. */
-
-.effect-row {
+.vital {
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+  align-items: center;
+  gap: 7px;
+}
+
+.plate--enemy .vital { flex-direction: row-reverse; }
+
+/* The red diamond, kept as the mark on the end of the bar: it is the oldest
+   picture in this game and it is what says the track is lives rather than
+   ammunition or time. */
+.vital-mark {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+  transform: rotate(45deg);
+  background: linear-gradient(150deg, var(--red-light), var(--red) 45%, var(--red-dark));
+  border: 2px solid var(--red-deep);
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.vital-tracks {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 3px;
   align-items: center;
 }
 
-.fighter-card.is-enemy .effect-row { justify-content: flex-end; }
-
-.effect-badge {
+.vital-track {
   position: relative;
+  height: 15px;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface-sunken);
+  border: 2px solid var(--edge-strong);
+  border-radius: 2px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.vital-track[hidden] { display: none; }
+
+.vital-fill,
+.vital-trail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 100%;
+  transform-origin: left center;
+}
+
+.plate--enemy .vital-fill,
+.plate--enemy .vital-trail { inset: 0 0 0 auto; }
+
+.vital-fill {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent 46%),
+    linear-gradient(90deg, var(--red-dark), var(--red) 30%, var(--red-light));
+  box-shadow: 0 0 10px rgba(198, 47, 42, 0.5);
+  transition: width 200ms var(--ease-out);
+}
+
+/* The ghost of what was there a moment ago. It is the whole reason a bar can
+   replace a row of diamonds: with fifteen lives one life is six per cent of
+   the width, and six per cent vanishing in a frame is not something an eye
+   catches. This does the catching — it hangs where the bar was, then runs
+   down to meet it a quarter of a second later. */
+.vital-trail {
+  background: linear-gradient(90deg, rgba(255, 226, 122, 0.85), rgba(255, 255, 255, 0.95));
+  box-shadow: 0 0 8px rgba(255, 226, 122, 0.6);
+  /* Hold, then drain at a steady rate. An eased curve leaves most of the
+     distance behind in the first fifty milliseconds, which is exactly the
+     thing this is here to stop being invisible. */
+  transition: width 420ms linear 200ms;
+}
+
+.vital-track.is-bonus { flex-grow: 0; }
+
+/* The gold ones, hung on the end of the bar by a Potion. Same track, the
+   game's gold: what says "these are not yours" is the colour and nothing
+   else, exactly as it was when they were diamonds. */
+.vital-track.is-bonus .vital-fill {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent 46%),
+    linear-gradient(90deg, var(--gold-dark), var(--gold) 40%, var(--gold-light));
+  box-shadow: 0 0 10px rgba(232, 177, 44, 0.55);
+}
+
+/* The notches are what make the track a COUNT rather than a percentage: one
+   per life, so "two left" is a thing you see rather than a thing you work
+   out. Past sixteen they are thinner than the gaps between them, at which
+   point the bar goes smooth and the number beside it does the counting. */
+.vital-notches {
+  position: absolute;
+  inset: 0;
+  --seg: calc(100% / var(--n, 6));
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(var(--seg) - 2px),
+    rgba(0, 0, 0, 0.85) calc(var(--seg) - 2px) var(--seg)
+  );
+  pointer-events: none;
+}
+
+.vital-track.is-smooth .vital-notches { opacity: 0; }
+
+.vital-count {
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.vital-count b {
+  color: var(--bone);
+  font-size: var(--text-sm);
+  font-style: normal;
+  display: inline-block;
+}
+
+.vital-count i { font-style: normal; }
+
+.vital-count b.is-hurt { animation: vital-hurt var(--dur-slow) var(--ease-out) both; }
+
+@keyframes vital-hurt {
+  0% { transform: scale(1.5) translateY(-2px); color: var(--red-light); }
+  60% { transform: scale(0.94); color: var(--red-light); }
+  100% { transform: scale(1); color: var(--bone); }
+}
+
+/* A quarter of the bar left. The fight is being lost, and it is worth a
+   heartbeat rather than a colour nobody notices changing. */
+.plate.is-critical .vital-fill { animation: vital-critical 900ms ease-in-out infinite; }
+.plate.is-critical .vital-mark { animation: vital-critical 900ms ease-in-out infinite; }
+
+@keyframes vital-critical {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.7) saturate(1.3); }
+}
+
+/* --- The strip: cylinder and tokens --------------------------------------
+   One line. Both of them.
+   ========================================================================== */
+
+.plate-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 22px;
+}
+
+.plate--enemy .plate-foot { flex-direction: row-reverse; }
+
+/* --- The cylinder --------------------------------------------------------
+   Six chambers, always drawn. A loaded chamber holds a brass round, an empty
+   one is a hole. This is why the duel never printed "no bullets" under each
+   fighter: an empty gun is six dark holes, which needs no caption. */
+
+.cylinder {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.chamber {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  /* An empty chamber is a hole with a lit rim, not a dark dot: the rim is what
+     makes six of them read as a cylinder at a glance. */
+  background: radial-gradient(circle at 38% 32%, #1d1409, #0a0603 72%);
+  border: 2px solid #5d4a30;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.95), 0 1px 0 rgba(255, 226, 170, 0.14);
+  transition: background var(--dur-fast) linear, border-color var(--dur-fast) linear;
+}
+
+.chamber.is-loaded {
+  background: radial-gradient(circle at 34% 28%, var(--gold-light) 0%, var(--gold) 45%, var(--gold-dark) 100%);
+  border-color: #3d2a06;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 0 6px rgba(232, 177, 44, 0.4);
+}
+
+.chamber.is-fresh { animation: chamber-load var(--dur-base) var(--ease-spring) both; }
+
+@keyframes chamber-load {
+  0% { transform: scale(0.2) rotate(-90deg); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+
+/* --- Tokens --------------------------------------------------------------
+   Poison, dynamite, bullet steal, mind control, the vest, the diadem, the
+   world special. Every one of them is a 16px icon on a plate, never a printed
+   name: the duel screen already asks the player to read a callout and three
+   buttons, and an ability is something they should recognise, not parse. The
+   name lives in the tooltip and in aria-label.
+
+   The strip does not wrap. Six tokens, then a `+n` key that opens the rest —
+   which is the whole difference between a plate that reports a Galaxy boss
+   and a plate that is buried by one. */
+
+.token-strip {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* Row-reverse packs from the right, so the tokens sit against the cylinder on
+   the enemy's plate exactly as they do on the player's — the whole strip is
+   one mirrored object rather than two ends of a plate with a hole in it. */
+.plate--enemy .token-strip { flex-direction: row-reverse; }
+
+/* Everything, on demand.
+
+   It opens as a panel hanging BELOW the plate rather than as a row that wraps
+   inside it, and that is the whole point: the plate is a fixed height and a
+   player asking to see the eleventh thing the boss is carrying must not be
+   able to change the shape of the screen. It hangs, it is read, it closes. */
+.token-strip.is-expanded {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 9px;
+  right: 9px;
+  z-index: 6;
+  flex-wrap: wrap;
+  flex-direction: row;
+  overflow: visible;
+  padding: 6px;
+  background: var(--surface-glass);
+  border: 2px solid var(--edge);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--lift-2);
+  backdrop-filter: blur(5px);
+}
+
+.plate--enemy .token-strip.is-expanded { flex-direction: row; justify-content: flex-end; }
+
+.token {
+  position: relative;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 3px;
-  border: 2px solid var(--edge);
+  padding: 2px;
+  border: 2px solid var(--blue-dark);
   border-radius: var(--radius);
   background: var(--surface-sunken);
   box-shadow: inset 0 1px 0 var(--edge-highlight);
   line-height: 0;
 }
 
-/* An ability the enemy *has*. Blue, like everything rare. */
-.effect-badge { border-color: var(--blue-dark); }
-/* An effect currently working on this fighter. */
-.effect-badge.is-active { border-color: var(--green); box-shadow: 0 0 8px rgba(122, 212, 106, 0.35); }
-.effect-badge.is-good { border-color: var(--gold-dark); }
-.effect-badge.is-blocked { border-color: var(--gold-light); }
+.token.is-hidden { display: none; }
 
-/* A world special: the one ability on the card that changes the ground rather
-   than the round. Gold while it is still in their pocket, red once it is
-   standing on the horizon — at which point it has stopped being a threat and
-   started being the weather. */
-.effect-badge.is-special {
+/* An arrival. Only genuinely new tokens play it — the strip is reconciled by
+   key, so a poison that was already there when the round ended does not
+   pop back into existence every round. */
+.token.is-new { animation: token-in var(--dur-base) var(--ease-spring) both; }
+
+@keyframes token-in {
+  0% { transform: scale(0.3) rotate(-12deg); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+
+/* An effect currently working on this fighter. */
+.token.is-active { border-color: var(--green); box-shadow: 0 0 8px rgba(122, 212, 106, 0.35); }
+/* Something being done TO them that they will not enjoy. */
+.token.is-bad { border-color: var(--red); box-shadow: 0 0 8px rgba(240, 87, 79, 0.4); }
+/* Something they are wearing that helps. */
+.token.is-good { border-color: var(--gold-dark); }
+.token.is-blocked { border-color: var(--gold-light); opacity: 0.7; }
+/* A trick they carry and have not spent. Dimmer than anything live, because
+   it has not happened yet — that difference is the whole ordering of the
+   strip. */
+.token.is-carried { border-color: var(--blue-dark); opacity: 0.78; }
+
+/* A world special still in their pocket: the one ability on the plate that
+   changes the ground rather than the round. Once it is raised it leaves the
+   strip altogether and becomes the dial in the middle of the screen. */
+.token.is-special {
   border-color: var(--gold-light);
   box-shadow: 0 0 10px rgba(255, 226, 122, 0.4);
-}
-.effect-badge.is-special.is-raised {
-  border-color: var(--red-light);
-  box-shadow: 0 0 12px rgba(240, 87, 79, 0.55);
+  opacity: 1;
 }
 
+.token--more {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-dim);
+  border-color: var(--edge);
+  background: var(--surface-sunken);
+  cursor: pointer;
+}
+
+.token--more:hover { color: var(--bone); border-color: var(--gold-dark); }
+.token--more[hidden] { display: none; }
+
 /* The countdown on a timed effect — poison has three rounds to run. */
-.effect-count {
+.token-count {
   position: absolute;
   right: -4px;
   bottom: -5px;
@@ -1449,12 +1811,323 @@
 }
 
 /* The moment an ability actually goes off. */
-.effect-badge.is-firing { animation: effect-fire 620ms var(--ease-out) both; }
+.token.is-firing { animation: token-fire 620ms var(--ease-out) both; }
 
-@keyframes effect-fire {
+@keyframes token-fire {
   0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 226, 122, 0.9); }
-  35% { transform: scale(1.35); box-shadow: 0 0 14px 4px rgba(255, 226, 122, 0.75); }
-  100% { transform: scale(1); box-shadow: inset 0 1px 0 var(--edge-highlight); }
+  35% { transform: scale(1.4) rotate(-6deg); box-shadow: 0 0 16px 5px rgba(255, 226, 122, 0.8); }
+  100% { transform: none; box-shadow: inset 0 1px 0 var(--edge-highlight); }
+}
+
+/* --- The centre lane -----------------------------------------------------
+   Round, conditions, clock. Narrow on purpose: it stands between two plates
+   and above two duellists, and everything in it is sized to stay out of the
+   road. */
+
+.duel-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.round-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 12px;
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: var(--surface-glass);
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+}
+
+.round-word { font-size: var(--text-xs); }
+
+.round-value {
+  font-size: var(--text-md);
+  color: var(--gold-light);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A round ending is a beat, not a digit quietly becoming a different digit. */
+.round-chip.is-turning .round-value { animation: round-turn var(--dur-slow) var(--ease-spring) both; }
+
+@keyframes round-turn {
+  0% { transform: translateY(-8px) scale(1.4); opacity: 0; filter: brightness(2); }
+  100% { transform: none; opacity: 1; filter: none; }
+}
+
+/* The conditions ribbon: night, weather, boss.
+
+   Deliberately the smallest type on the screen and deliberately one line.
+   These used to be full-size pills stacked down the middle of the road, and
+   "Starfall" in Spanish is "Lluvia de estrellas" — a very long way of saying
+   something that moves one accuracy number. It is context, not news. */
+.conditions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  max-width: 190px;
+}
+
+.conditions[hidden] { display: none; }
+
+.condition {
+  padding: 2px 7px;
+  font-family: var(--font-display);
+  font-size: 9px;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: rgba(12, 7, 3, 0.7);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  white-space: nowrap;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.condition--boss { color: var(--gold-light); border-color: var(--gold-dark); }
+.condition--cold { color: var(--blue-light); border-color: var(--blue-dark); }
+.condition--weather { color: var(--sand); border-color: var(--sand-deep); }
+
+/* --- The threat dial -----------------------------------------------------
+   The one instrument on this screen.
+
+   A world special runs on real time while the player reads three buttons, and
+   it used to be told as a text pill in a stack of other text pills that
+   looked exactly like it — so the only clock in the game looked like the two
+   labels beside it, and its number had to be read rather than felt. It is a
+   ring now: sixteen segments filling as the quiet runs out, the special's own
+   icon in the middle, the seconds under it, and the special's own sky colour
+   on the whole thing so the rift's dial is purple and the volcano's is red
+   without a line of per-special code.
+   ========================================================================== */
+
+.threat-board {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.threat-board[hidden] { display: none; }
+
+.threat {
+  --threat-accent: var(--gold-light);
+  --threat-glow: rgba(255, 226, 122, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 74px;
+  animation: threat-in var(--dur-slow) var(--ease-spring) both;
+}
+
+@keyframes threat-in {
+  0% { transform: scale(0.4) translateY(-10px); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+
+.dial {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* A soft dark disc under the whole instrument. The dial floats directly on
+   the road with nothing behind it, and an unlit segment has to stay unlit
+   against a midday desert sky as well as against a night one — without this,
+   the ring's empty half disappeared over pale ground and the clock read full
+   whatever the time was. */
+.dial::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(8, 4, 2, 0.78) 54%, rgba(8, 4, 2, 0) 80%);
+}
+
+.dial-ring { position: absolute; inset: 0; }
+
+/* Each segment is one block on a clock face, laid round the ring by its own
+   rotation. Sixteen reads as a dial; twelve read as a flower. */
+.dial-seg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 8px;
+  margin: -31px 0 0 -2px;
+  transform-origin: 50% 31px;
+  background: rgba(255, 226, 198, 0.11);
+  border-radius: 1px;
+  transition: background var(--dur-fast) linear, box-shadow var(--dur-fast) linear;
+}
+
+.dial-seg.is-lit {
+  background: var(--threat-accent);
+  box-shadow: 0 0 6px var(--threat-glow);
+}
+
+.dial-core {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 32%, rgba(58, 38, 20, 0.96), rgba(12, 7, 3, 0.96));
+  /* The rim takes the special's colour at a whisper, so the icon sits in a
+     little lens of the thing it belongs to rather than in a black hole. */
+  border: 2px solid var(--threat-accent);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.9), 0 0 8px var(--threat-glow);
+  line-height: 0;
+}
+
+/* The icon is a 16px sprite lit from the plate it usually sits on; on a dark
+   lens it needs its own edge to stay legible. */
+.dial-core img { filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.9)) brightness(1.25); }
+
+/* The number sits ON the ring at the bottom, rather than under it: the dial
+   is one object and the reading belongs to it. */
+.dial-num {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--bone);
+  background: rgba(10, 6, 3, 0.95);
+  border: 1px solid var(--threat-accent);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* Clear of the number badge, which hangs off the bottom of the ring. */
+.threat-label {
+  max-width: 74px;
+  margin-top: 13px;
+  /* Roomy enough that `overflow: hidden` — which is there for the ellipsis on
+     a long name — trims the ends of the line and never its bottom edge. */
+  line-height: 16px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--threat-accent);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The four states, each one a different urgency and each one saying so
+   without a word. */
+.threat[data-phase='warn'],
+.threat[data-phase='erupt'] { --threat-accent: var(--red-light); --threat-glow: rgba(240, 87, 79, 0.7); }
+.threat[data-phase='charge'] { --threat-accent: var(--purple); --threat-glow: rgba(138, 92, 214, 0.7); }
+.threat[data-phase='spent'] { --threat-accent: var(--steel-dark); --threat-glow: rgba(111, 117, 127, 0.4); }
+
+.threat[data-phase='warn'] .dial,
+.threat[data-phase='erupt'] .dial { animation: dial-alarm 620ms ease-in-out infinite; }
+
+/* The wind-up is a slower pulse than the eruption on purpose: one of them is
+   a thing about to happen and the other one is happening. */
+.threat[data-phase='charge'] .dial { animation: dial-alarm 1100ms ease-in-out infinite; }
+
+@keyframes dial-alarm {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+
+/* The blow landing. */
+.threat.is-striking { animation: threat-strike 520ms var(--ease-out); }
+
+@keyframes threat-strike {
+  0% { transform: scale(1.3); filter: brightness(2.2); }
+  30% { transform: scale(0.94); }
+  100% { transform: none; filter: none; }
+}
+
+/* The player's own one-shot, which is the same instrument read the other way:
+   this one is a countdown to something GOOD. */
+.threat[data-owner='player'] { --threat-accent: var(--blue-light); --threat-glow: rgba(127, 184, 255, 0.6); }
+.threat[data-owner='player'] .threat-label { color: var(--blue-light); }
+
+/* --- The bottom band ----------------------------------------------------- */
+
+.duel-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  max-width: 720px;
+}
+
+/* The single most important line on the screen: what just happened. It sits
+   directly above the buttons, never over the duellists. */
+.duel-callout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 40px;
+  width: 100%;
+  padding: 6px var(--sp-4);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--sand-light);
+  background: var(--surface-glass);
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+  transition: border-color var(--dur-fast) linear, box-shadow var(--dur-fast) linear;
+}
+
+.duel-callout > span { animation: callout-in var(--dur-base) var(--ease-spring) both; }
+
+.duel-callout.is-good {
+  border-color: var(--green);
+  color: var(--green-light);
+  box-shadow: 0 0 16px rgba(79, 154, 60, 0.3);
+}
+
+.duel-callout.is-bad {
+  border-color: var(--red);
+  color: var(--red-light);
+  box-shadow: 0 0 16px rgba(198, 47, 42, 0.35);
+}
+
+.duel-callout.is-waiting { color: var(--text-dim); }
+
+@keyframes callout-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
 }
 
 /* --- The ability bar ------------------------------------------------------
@@ -1468,7 +2141,6 @@
   display: flex;
   justify-content: center;
   gap: 10px;
-  margin-bottom: 8px;
   flex-wrap: wrap;
 }
 
@@ -1478,7 +2150,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 5px 12px;
   font-size: 13px;
   border-color: var(--edge);
   opacity: 0.6;
@@ -1516,109 +2188,13 @@
   border-radius: 50%;
   background: #1d1409;
   border: 1px solid #5d4a30;
+  transition: background var(--dur-fast) linear, box-shadow var(--dur-fast) linear;
 }
 
 .charge-pip.is-lit {
   background: var(--gold-light);
   border-color: #3d2a06;
   box-shadow: 0 0 5px rgba(232, 177, 44, 0.6);
-}
-
-/* --- The cylinder --------------------------------------------------------
-   Six chambers, always drawn. A loaded chamber holds a brass round, an empty
-   one is a hole. This replaces the old "no bullets" caption: an empty gun is
-   now something you see rather than something you read. */
-
-.cylinder {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.chamber {
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  /* An empty chamber is a hole with a lit rim, not a dark dot: the rim is what
-     makes six of them read as a cylinder at a glance. */
-  background: radial-gradient(circle at 38% 32%, #1d1409, #0a0603 72%);
-  border: 2px solid #5d4a30;
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.95), 0 1px 0 rgba(255, 226, 170, 0.14);
-  transition: background var(--dur-fast) linear, border-color var(--dur-fast) linear;
-}
-
-.chamber.is-loaded {
-  background: radial-gradient(circle at 34% 28%, var(--gold-light) 0%, var(--gold) 45%, var(--gold-dark) 100%);
-  border-color: #3d2a06;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 0 6px rgba(232, 177, 44, 0.4);
-}
-
-.chamber.is-fresh { animation: chamber-load var(--dur-base) var(--ease-spring) both; }
-
-@keyframes chamber-load {
-  0% { transform: scale(0.2) rotate(-90deg); opacity: 0; }
-  100% { transform: none; opacity: 1; }
-}
-
-.duel-center {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-2);
-}
-
-.round-pill {
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  padding: 5px 14px;
-  background: var(--surface-glass);
-  border: 2px solid var(--edge);
-  border-radius: 999px;
-  backdrop-filter: blur(4px);
-}
-
-.duel-bottom {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-3);
-  max-width: 720px;
-}
-
-/* The single most important line on the screen: what just happened. It sits
-   directly above the buttons, never over the duellists. */
-.duel-callout {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
-  min-height: 46px;
-  width: 100%;
-  padding: var(--sp-2) var(--sp-4);
-  font-family: var(--font-display);
-  font-size: var(--text-md);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  text-align: center;
-  color: var(--sand-light);
-  background: var(--surface-glass);
-  border: 2px solid var(--edge);
-  border-radius: 999px;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(5px);
-}
-
-.duel-callout > span { animation: callout-in var(--dur-base) var(--ease-spring) both; }
-
-.duel-callout.is-good { border-color: var(--green); color: var(--green-light); }
-.duel-callout.is-bad { border-color: var(--red); color: var(--red-light); }
-.duel-callout.is-waiting { color: var(--text-dim); }
-
-@keyframes callout-in {
-  from { opacity: 0; transform: translateY(6px) scale(0.97); }
-  to { opacity: 1; transform: none; }
 }
 
 .duel-controls {
@@ -1638,7 +2214,7 @@
   gap: 4px;
   width: 100%;
   justify-self: stretch;
-  min-height: 92px;
+  min-height: 86px;
   padding: var(--sp-3) var(--sp-2);
 }
 
@@ -1690,6 +2266,11 @@
 .duel-extras .duel-callout { flex: 1 1 auto; min-width: 0; }
 .duel-extras > .btn { flex: 0 0 auto; }
 
+@media (max-width: 720px) {
+  .duel-screen { --plate-w: 240px; }
+  .duel-top { gap: var(--sp-2); }
+}
+
 @media (max-width: 620px) {
   /* On a phone the callout takes the full line and the two controls sit under
      it, rather than squeezing a status message into a third of the width. */
@@ -1698,17 +2279,61 @@
 }
 
 @media (max-width: 560px) {
-  .duel-btn { min-height: 76px; }
+  .duel-btn { min-height: 72px; }
   .duel-btn-label { font-size: var(--text-sm); }
+  /* The plates keep the top row and the centre lane drops under them. Both
+     plates stay the same size as each other, which is the one thing the old
+     layout could not promise at any width. */
   .duel-top {
     grid-template-columns: 1fr 1fr;
     grid-template-areas: 'you enemy' 'center center';
   }
-  .duel-top > .fighter-card:first-child { grid-area: you; }
-  .duel-top > .fighter-card:last-child { grid-area: enemy; }
-  .duel-center { grid-area: center; }
-  .chamber { width: 12px; height: 12px; border-width: 1px; }
-  .cylinder { gap: 3px; }
+  .duel-screen { --plate-w: none; }
+  .duel-top > .plate--player { grid-area: you; }
+  .duel-top > .plate--enemy { grid-area: enemy; }
+  .duel-center {
+    grid-area: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--sp-2);
+  }
+  /* Both ability plates on one row: the icon, the key and the charge are the
+     plate, and the name — the one part that makes it 340 pixels wide in
+     Spanish — is already on the tooltip. */
+  .ability-word { display: none; }
+  .ability-plate { padding: 5px 7px; }
+  .duel-abilities { gap: 6px; }
+  /* The cylinder takes its own line on a phone. Half a plate is eighty pixels
+     wide there, and a cylinder and a token strip sharing it left room for one
+     icon and a `+5` — the strip was reporting that it could not report. Both
+     plates gain the same line, so they stay the same size as each other. */
+  .plate-foot,
+  .plate--enemy .plate-foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  .plate--enemy .plate-foot { align-items: flex-end; }
+  /* The strip keeps its line even when a fighter is carrying nothing, so the
+     two plates stay the same height as each other whatever is on them. */
+  .token-strip { width: 100%; min-height: 24px; }
+  .chamber { width: 11px; height: 11px; border-width: 1px; }
+  .plate { padding: 7px 8px; gap: 5px; }
+  .vital-track { height: 13px; }
+}
+
+/* A dial that pulses forever is a dial that cannot be ignored, which is
+   exactly wrong for a player who has asked for less motion. They keep the
+   colour and the ring, which carry the same reading. */
+@media (prefers-reduced-motion: reduce) {
+  .plate.is-critical .vital-fill,
+  .plate.is-critical .vital-mark,
+  .threat[data-phase='warn'] .dial,
+  .threat[data-phase='erupt'] .dial,
+  .threat[data-phase='charge'] .dial {
+    animation: none;
+  }
 }
 
 /* --- Battle overview ------------------------------------------------------ */
