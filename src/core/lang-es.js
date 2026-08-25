@@ -408,7 +408,11 @@ export const ES = {
   Accuracy: 'Puntería',
   'Shots fired': 'Disparos hechos',
   'Lives left': 'Vidas restantes',
+  Round: 'Ronda',
   'Round 1': 'Ronda 1',
+  // The `+n` key on a fighter's token strip.
+  'Show fewer': 'Ver menos',
+  'Show everything on them': 'Ver todo lo que llevan',
   'Round by round': 'Ronda a ronda',
   'Battle overview': 'Resumen del combate',
   'Choose your move': 'Elige tu movimiento',
@@ -1727,13 +1731,16 @@ export const ES = {
   '{label} — {left} left': '{label}: quedan {left}',
   '{label} — spent for this duel': '{label}: gastado en este duelo',
   '{label} — {bullets} rounds already loaded': '{label}: {bullets} balas ya cargadas',
-  'You call down the {trick}': 'Invocas {trick}',
-  '{name} calls up the {trick}': '{name} invoca {trick}',
-  'The {trick} is winding up': '{trick} se está preparando',
+  'You call down {label}': 'Invocas {label}',
+  '{name} calls up {label}': '{name} invoca {label}',
+  '{label} — winding up': '{label}: preparándose',
   '{mine} vs {theirs}': '{mine} contra {theirs}',
   '{name} · {rounds} rounds': '{name} · {rounds} rondas',
   '{name} · {rounds} rounds · sandbox': '{name} · {rounds} rondas · cajón de arena',
-  '{cost} a shot': '{cost} por disparo',
+  // The gun chip's unit, on its own: the number beside it is a number in
+  // every language, and the two are separate nodes so a phone can drop this
+  // one and keep the figure. See `gunChip` in src/duel/duel-screen.js.
+  'a shot': 'por disparo',
   Ability: 'Habilidad',
   Frozen: 'Congelado',
 
@@ -2018,11 +2025,20 @@ export const ES = {
   '{count} lives an eruption': '{count} vidas por erupción',
   '{label} — {what}. {rate}': '{label}: {what}. {rate}',
   '{what}. {rate}': '{what}. {rate}',
-  '{label} · {seconds}s': '{label} · {seconds}s',
-  '{label} · CHARGING {pct}%': '{label} · CARGANDO {pct}%',
-  '{label} · FIRED': '{label} · DISPARADO',
-  '{label} · NOW': '{label} · AHORA',
-  '{label} · ERUPTING': '{label} · EN ERUPCIÓN',
+  // The threat dial: four words in the middle of a ring, and the sentence
+  // each of them puts on the tooltip. See `readClock` in src/duel/duel-hud.js.
+  '{seconds}s': '{seconds}s',
+  '{label} — {tip}': '{label}: {tip}',
+  '{label} — it is waking': '{label}: está despertando',
+  '{label} — charging': '{label}: cargando',
+  '{label} — it has fired': '{label}: ya ha disparado',
+  '{label} — erupting': '{label}: en erupción',
+  // The one line a mega strike puts on the callout. The label carries its own
+  // article — "La Grieta" — so the sentence must not supply a second one.
+  '1 life at once': '1 vida de golpe',
+  '{count} lives at once': '{count} vidas de golpe',
+  '{label} fires — {took}': '{label} dispara: {took}',
+  '{label} fires at them — {took}': '{label} les dispara: {took}',
   '{exp} / {next} exp to level {level}': '{exp} / {next} de exp para el nivel {level}',
   'Nobody out there yet.': 'Todavía no hay nadie ahí fuera.',
   'This slot is closed for good.': 'Esta ranura está cerrada para siempre.',

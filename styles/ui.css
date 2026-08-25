@@ -619,26 +619,14 @@
 
 .chip--danger { border-color: var(--red); color: var(--red-light); }
 
-/* The world-hazard clock. It sits quiet while the thing on the horizon is
-   counting, and it is impossible to miss while the thing is going off — the
-   player is meant to be spending those seconds, so they have to be able to
-   read them without looking away from the fight. */
 /* `.chip` sets display, so it wins over the browser's [hidden] rule and a
    hidden chip stays on screen as an empty pill. This puts it back. */
 .chip[hidden] { display: none; }
 
-.chip--hazard { border-color: var(--gold-dark); color: var(--gold-light); }
-.chip--hazard.is-erupting {
-  border-color: var(--red-light);
-  color: #fff1cf;
-  background: rgba(198, 47, 42, 0.35);
-  animation: hazard-pulse 620ms ease-in-out infinite;
-}
-
-@keyframes hazard-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(240, 87, 79, 0); }
-  50% { box-shadow: 0 0 12px 2px rgba(240, 87, 79, 0.6); }
-}
+/* The world-hazard clock used to be one of these — `.chip--hazard`, a pill
+   with a number in it, in a stack of pills without numbers in them. It is a
+   dial now (see `.threat` in styles/game.css), because the one instrument in
+   the game should not look like the labels next to it. */
 
 .chip.is-bumped { animation: chip-bump var(--dur-base) var(--ease-spring) both; }
 
