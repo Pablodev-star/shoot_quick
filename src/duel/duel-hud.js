@@ -317,12 +317,21 @@ export function createFighterPlate({
    * wide as the window lets it be — so the cap is recomputed when the box
    * changes rather than once at build time. Nothing else in here reads the
    * layout, which is what makes one observer enough.
+   *
+   * IT IS HELD SO IT CAN BE DROPPED
+   * -------------------------------------------------------------------------
+   * A run is dozens of duels and every duel builds two of these. An observer
+   * with a live observation keeps its target — and therefore this whole
+   * closure, the token map and every node in it — reachable after the screen
+   * has been torn down, so a player who fights forty riders is carrying forty
+   * dead plates. `dispose` is what the duel screen calls on its way out.
    */
-  if (typeof ResizeObserver === 'function') {
-    new ResizeObserver(() => {
-      if (!expanded && cap !== measureCap()) layTokens();
-    }).observe(tokens);
-  }
+  const observer = typeof ResizeObserver === 'function'
+    ? new ResizeObserver(() => {
+        if (!expanded && cap !== measureCap()) layTokens();
+      })
+    : null;
+  observer?.observe(tokens);
 
   return {
     node,
@@ -337,6 +346,10 @@ export function createFighterPlate({
     setTag(nodeOrNull) {
       clearNode(tagSlot);
       if (nodeOrNull) tagSlot.append(nodeOrNull);
+    },
+    /** Let go of the layout watcher. The screen calls this when it unmounts. */
+    dispose() {
+      observer?.disconnect();
     },
     /** Something landed on this fighter. */
     hit() {
@@ -636,20 +649,33 @@ function readClock({ spec, state, seconds, rate }) {
    * the Spanish table to agree with. The words are all on the tooltip, where
    * they arrive as whole sentences with the special's name in them.
    */
-  if (phase === 'warning') {
-    return {
-      k: 1,
-      text: '!',
-      tone: 'warn',
-      tip: `${t('{label} — it is waking', { label: t(spec.label) })}${price}`,
-    };
-  }
+  /**
+   * A CHARGE SPECIAL IS ALREADY WINDING UP DURING THE WARNING
+   * ---------------------------------------------------------------------------
+   * This is asked before the warning state, not after it, and the order is the
+   * whole point: `chargeLevel` in src/duel/duel-hazard.js starts filling the
+   * moment the sky turns and runs from nought to three tenths across the
+   * warning — deliberately, because "a rift that is quiet for two seconds and
+   * then suddenly full has hidden the half of the wind-up the player most
+   * needed". Answering the warning first threw that half away and drew a full
+   * ring instead, so the dial read FULL, then dropped to 30%, then filled
+   * again: the one instrument on the screen going backwards at the exact
+   * moment the player is deciding whether to press the fight.
+   */
   if (charge >= 0) {
     return {
       k: charge,
       text: `${Math.min(99, Math.round(charge * 100))}%`,
       tone: 'charge',
       tip: `${t('{label} — charging', { label: t(spec.label) })}${price}`,
+    };
+  }
+  if (phase === 'warning') {
+    return {
+      k: 1,
+      text: '!',
+      tone: 'warn',
+      tip: `${t('{label} — it is waking', { label: t(spec.label) })}${price}`,
     };
   }
   if (state.pattern === 'charge') {

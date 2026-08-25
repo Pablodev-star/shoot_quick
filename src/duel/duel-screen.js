@@ -1795,6 +1795,11 @@ export const DuelScreen = {
       unsubItemUsed();
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('resize', syncHud);
+      // A run is dozens of fights, and each plate watches its own token strip
+      // for a resize. An observer with a live observation keeps the plate it
+      // belongs to reachable long after the duel is over.
+      playerPlate.dispose();
+      enemyPlate.dispose();
     };
   },
 };
